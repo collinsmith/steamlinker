@@ -1,6 +1,7 @@
 package com.gmail.collinsmith70.steamlinker;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.File;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -34,8 +36,11 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
@@ -63,12 +68,42 @@ public class Main extends Application {
     stage.setScene(scene);
     stage.show();
 
-    configureSteamDir(scene);
+    Path steamDir = configureSteamDir(scene);
+    if (steamDir != null) {
+      populateGames(scene, steamDir);
+    }
   }
 
-  private void configureSteamDir(@NotNull Scene scene) {
+  private void populateGames(@NotNull Scene scene, @NotNull Path steamDir) throws IOException {
+    TableView games = (TableView) scene.lookup("#games");
+
+    List<GameModel> list = Files.list(steamDir)
+        .map(game -> {
+          try {
+            return new GameModel(game.getFileName().toString(), game.toRealPath().toString());
+          } catch (IOException e) {
+            return new GameModel(game.getFileName().toString(), "");
+          }
+        })
+        .collect(Collectors.toList());
+    ObservableList<GameModel> items = FXCollections.observableList(list);
+    games.setItems(items);
+
+    TableColumn titleColumn = new TableColumn(Bundle.translate("table.title"));
+    titleColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("title"));
+
+    TableColumn pathColumn = new TableColumn(Bundle.translate("table.path"));
+    pathColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("path"));
+
+    games.getColumns().addAll(titleColumn, pathColumn);
+  }
+
+  @Nullable
+  private Path configureSteamDir(@NotNull Scene scene) {
     TextInputControl steamDir = (TextInputControl) scene.lookup("#commonDir");
-    steamDir.setText(PREFERENCES.get("common.dir", ""));
+    String text = PREFERENCES.get("common.dir", "");
+    steamDir.setText(text);
+    return !text.isEmpty() ? Paths.get(text) : null;
   }
 
   private void configureRepositories(@NotNull Scene scene) {
