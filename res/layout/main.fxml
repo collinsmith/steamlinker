@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXTextField?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Text?>
+
+<BorderPane prefHeight="600.0" prefWidth="800.0" style="-fx-padding: 8px;" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.gmail.collinsmith70.steamlinker.Main">
+  <top>
+    <HBox spacing="8" alignment="CENTER">
+      <BorderPane.margin>
+        <Insets bottom="8" />
+      </BorderPane.margin>
+      <JFXButton contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#onSettingsPressed" prefHeight="32" prefWidth="32" style="-fx-padding: 4px;">
+        <graphic>
+          <ImageView fitHeight="32" fitWidth="32">
+            <Image url="@/png/settings-4.png" />
+          </ImageView>
+        </graphic>
+      </JFXButton>
+      <VBox fx:id="row" HBox.hgrow="ALWAYS">
+        <Text text="%path.to.common" />
+        <JFXTextField fx:id="commonDir" disable="true" editable="false" HBox.hgrow="ALWAYS"/>
+      </VBox>
+    </HBox>
+  </top>
+  <center>
+    <ScrollPane />
+  </center>
+</BorderPane>
