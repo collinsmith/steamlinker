@@ -1,5 +1,10 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import com.jfoenix.controls.JFXTreeTableColumn;
+import com.jfoenix.controls.JFXTreeTableView;
+import com.jfoenix.controls.RecursiveTreeItem;
+import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -36,11 +41,10 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
-import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableColumn;
 import javafx.scene.image.Image;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
@@ -75,27 +79,56 @@ public class Main extends Application {
   }
 
   private void populateGames(@NotNull Scene scene, @NotNull Path steamDir) throws IOException {
-    TableView games = (TableView) scene.lookup("#games");
+    JFXTreeTableView games = (JFXTreeTableView) scene.lookup("#games");
+
+    JFXTreeTableColumn<GameModel, String> titleColumn = new JFXTreeTableColumn(Bundle.translate("table.title"));
+    //titleColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("title"));
+    titleColumn.setCellValueFactory(
+        (TreeTableColumn.CellDataFeatures<GameModel, String> param) -> {
+          if (titleColumn.validateValue(param)) {
+            return param.getValue().getValue().title;
+          } else {
+            return titleColumn.getComputedValue(param);
+          }
+        });
+
+    JFXTreeTableColumn<GameModel, String> pathColumn = new JFXTreeTableColumn(Bundle.translate("table.path"));
+    //pathColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("path"));
+    pathColumn.setCellValueFactory(
+        (TreeTableColumn.CellDataFeatures<GameModel, String> param) -> {
+          if (pathColumn.validateValue(param)) {
+            return param.getValue().getValue().path;
+          } else {
+            return pathColumn.getComputedValue(param);
+          }
+        });
+
+    JFXTreeTableColumn<GameModel, GameModel.FileSize> sizeColumn = new JFXTreeTableColumn(Bundle.translate("table.size"));
+    //sizeColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("size"));
+    sizeColumn.setCellValueFactory(
+        (TreeTableColumn.CellDataFeatures<GameModel, GameModel.FileSize> param) -> {
+          if (sizeColumn.validateValue(param)) {
+            return param.getValue().getValue().size;
+          } else {
+            return sizeColumn.getComputedValue(param);
+          }
+        });
 
     List<GameModel> list = Files.list(steamDir)
         .map(game -> {
           try {
-            return new GameModel(game.getFileName().toString(), game.toRealPath().toString());
+            return new GameModel(game.getFileName().toString(), game.toRealPath().toString(), 0L);
           } catch (IOException e) {
-            return new GameModel(game.getFileName().toString(), "");
+            return new GameModel(game.getFileName().toString(), "", 0L);
           }
         })
         .collect(Collectors.toList());
+
     ObservableList<GameModel> items = FXCollections.observableList(list);
-    games.setItems(items);
-
-    TableColumn titleColumn = new TableColumn(Bundle.translate("table.title"));
-    titleColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("title"));
-
-    TableColumn pathColumn = new TableColumn(Bundle.translate("table.path"));
-    pathColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("path"));
-
-    games.getColumns().addAll(titleColumn, pathColumn);
+    TreeItem<GameModel> root = new RecursiveTreeItem<>(items, RecursiveTreeObject::getChildren);
+    games.setRoot(root);
+    games.setShowRoot(false);
+    games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
   }
 
   @Nullable
