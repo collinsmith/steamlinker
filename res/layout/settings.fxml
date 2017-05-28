@@ -1,31 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXListView?>
 <?import com.jfoenix.controls.JFXTextField?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ButtonType?>
 <?import javafx.scene.control.DialogPane?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.image.Image?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Text?>
-<DialogPane xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1"
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<DialogPane xmlns="http://javafx.com/javafx/8.0.112"
+            xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.gmail.collinsmith70.steamlinker.Main">
    <content>
-      <VBox prefHeight="480" prefWidth="600" style="-fx-padding: 8px;" spacing="8">
+      <VBox minWidth="320" minHeight="240"
+            maxWidth="Infinity" maxHeight="Infinity"
+            prefWidth="640" prefHeight="480"
+            style="-fx-padding: 8px;"
+            spacing="8">
         <VBox fx:id="row" HBox.hgrow="ALWAYS">
           <Text text="%path.to.common"/>
           <HBox>
-            <JFXTextField fx:id="commonDir" disable="true" editable="false" HBox.hgrow="ALWAYS"/>
-            <JFXButton mnemonicParsing="false" prefWidth="32" prefHeight="32"
-                       onAction="#onChangeSteamDir">
+            <JFXTextField fx:id="commonDir"
+                          disable="true"
+                          editable="false"
+                          HBox.hgrow="ALWAYS" />
+            <JFXButton contentDisplay="GRAPHIC_ONLY"
+                       mnemonicParsing="false"
+                       onAction="#onChangeSteamDir"
+                       style="-fx-padding: 4px;">
               <graphic>
-                <ImageView fitHeight="16" fitWidth="16">
-                  <Image url="@/png/edit.png"/>
-                </ImageView>
+                <FontIcon iconLiteral="gmi-create:20"/>
               </graphic>
             </JFXButton>
           </HBox>
@@ -33,20 +40,25 @@
         <VBox VBox.vgrow="ALWAYS">
           <Label text="%path.to.destination" />
           <HBox VBox.vgrow="ALWAYS">
-            <ScrollPane HBox.hgrow="ALWAYS" />
+            <JFXListView fx:id="repos" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS"/>
             <VBox>
-              <JFXButton contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" style="-fx-padding: 4px;">
+              <JFXButton fx:id="addRepository"
+                         contentDisplay="GRAPHIC_ONLY"
+                         mnemonicParsing="false"
+                         style="-fx-padding: 4px;"
+                         onAction="#onAddRepo">
                 <graphic>
-                  <ImageView fitHeight="16" fitWidth="16">
-                    <Image url="@/mipmap/add.png" />
-                  </ImageView>
+                  <FontIcon iconLiteral="gmi-add:20:green"/>
                 </graphic>
               </JFXButton>
-              <JFXButton contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" style="-fx-padding: 4px;" disable="true">
+              <JFXButton fx:id="removeRepository"
+                         contentDisplay="GRAPHIC_ONLY"
+                         mnemonicParsing="false"
+                         style="-fx-padding: 4px;"
+                         disable="true"
+                         onAction="#onRemoveRepo">
                 <graphic>
-                  <ImageView fitHeight="16" fitWidth="16">
-                    <Image url="@/mipmap/remove.png" />
-                  </ImageView>
+                  <FontIcon iconLiteral="gmi-remove:20:red"/>
                 </graphic>
               </JFXButton>
             </VBox>
