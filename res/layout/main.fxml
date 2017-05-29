@@ -9,6 +9,8 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Text?>
 <?import com.jfoenix.controls.JFXTreeTableView?>
+<?import com.jfoenix.controls.JFXProgressBar?>
+<?import javafx.scene.control.Label?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.112"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.gmail.collinsmith70.steamlinker.Main"
@@ -46,4 +48,25 @@
       </columnResizePolicy>
     </JFXTreeTableView>
   </center>
+  <bottom>
+    <HBox spacing="8" alignment="CENTER_LEFT">
+      <BorderPane.margin>
+        <Insets top="8"/>
+      </BorderPane.margin>
+      <JFXButton fx:id="btnLeft" onAction="#onTransferPressed" disable="true">
+        <graphic>
+          <FontIcon iconLiteral="gmi-chevron-left:32:blue"/>
+        </graphic>
+      </JFXButton>
+      <JFXButton fx:id="btnRight" onAction="#onTransferPressed" disable="true">
+        <graphic>
+          <FontIcon iconLiteral="gmi-chevron-right:32:blue"/>
+        </graphic>
+      </JFXButton>
+      <HBox fx:id="transferProgress" visible="false" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+        <JFXProgressBar fx:id="transferProgressBar" HBox.hgrow="ALWAYS"/>
+        <Label fx:id="transferTimeRemaining"/>
+      </HBox>
+    </HBox>
+  </bottom>
 </BorderPane>

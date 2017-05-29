@@ -5,12 +5,15 @@ import com.jfoenix.controls.JFXTreeTableView;
 import com.jfoenix.controls.RecursiveTreeItem;
 import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
 
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -45,7 +49,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableView;
 import javafx.scene.image.Image;
+import javafx.scene.layout.Pane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -72,19 +78,43 @@ public class Main extends Application {
     stage.setScene(scene);
     stage.show();
 
+    boolean[] running = { true };
     Path steamDir = configureSteamDir(scene);
     if (steamDir != null) {
-      populateGames(scene, steamDir);
+      ObservableList<Game> games = populateGames(scene, steamDir);
+      Task task = new Task() {
+        @Override
+        protected Object call() throws Exception {
+          for (Game game : games) {
+            if (!running[0]) {
+              break;
+            }
+
+            Path path = game.getPath();
+            if (path == null) {
+              continue;
+            }
+
+            long size = FileUtils.sizeOfDirectory(path.toFile());
+            game.setSize(new Game.FileSize(size));
+          }
+
+          return null;
+        }
+      };
+
+      new Thread(task).start();
+      stage.setOnCloseRequest(event -> running[0] = false);
     }
   }
 
-  private void populateGames(@NotNull Scene scene, @NotNull Path steamDir) throws IOException {
-    JFXTreeTableView games = (JFXTreeTableView) scene.lookup("#games");
+  private ObservableList<Game> populateGames(@NotNull Scene scene, @NotNull Path steamDir) throws IOException {
+    JFXTreeTableView<Game> games = (JFXTreeTableView) scene.lookup("#games");
 
-    JFXTreeTableColumn<GameModel, String> titleColumn = new JFXTreeTableColumn(Bundle.translate("table.title"));
-    //titleColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("title"));
+    JFXTreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn(Bundle.translate("table.title"));
+    //titleColumn.setCellValueFactory(new PropertyValueFactory<Game, String>("title"));
     titleColumn.setCellValueFactory(
-        (TreeTableColumn.CellDataFeatures<GameModel, String> param) -> {
+        (TreeTableColumn.CellDataFeatures<Game, String> param) -> {
           if (titleColumn.validateValue(param)) {
             return param.getValue().getValue().title;
           } else {
@@ -92,10 +122,10 @@ public class Main extends Application {
           }
         });
 
-    JFXTreeTableColumn<GameModel, String> pathColumn = new JFXTreeTableColumn(Bundle.translate("table.path"));
-    //pathColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("path"));
+    JFXTreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn(Bundle.translate("table.path"));
+    //pathColumn.setCellValueFactory(new PropertyValueFactory<Game, String>("path"));
     pathColumn.setCellValueFactory(
-        (TreeTableColumn.CellDataFeatures<GameModel, String> param) -> {
+        (TreeTableColumn.CellDataFeatures<Game, Path> param) -> {
           if (pathColumn.validateValue(param)) {
             return param.getValue().getValue().path;
           } else {
@@ -103,10 +133,11 @@ public class Main extends Application {
           }
         });
 
-    JFXTreeTableColumn<GameModel, GameModel.FileSize> sizeColumn = new JFXTreeTableColumn(Bundle.translate("table.size"));
-    //sizeColumn.setCellValueFactory(new PropertyValueFactory<GameModel, String>("size"));
+    JFXTreeTableColumn<Game, Game.FileSize> sizeColumn = new JFXTreeTableColumn(Bundle.translate("table.size"));
+    //sizeColumn.setCellValueFactory(new PropertyValueFactory<Game, String>("size"));
+    sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
     sizeColumn.setCellValueFactory(
-        (TreeTableColumn.CellDataFeatures<GameModel, GameModel.FileSize> param) -> {
+        (TreeTableColumn.CellDataFeatures<Game, Game.FileSize> param) -> {
           if (sizeColumn.validateValue(param)) {
             return param.getValue().getValue().size;
           } else {
@@ -114,21 +145,43 @@ public class Main extends Application {
           }
         });
 
-    List<GameModel> list = Files.list(steamDir)
+    List<Game> list = Files.list(steamDir)
         .map(game -> {
           try {
-            return new GameModel(game.getFileName().toString(), game.toRealPath().toString(), 0L);
+            return new Game(game.getFileName().toString(), game.toRealPath());
           } catch (IOException e) {
-            return new GameModel(game.getFileName().toString(), "", 0L);
+            return new Game(game.getFileName().toString(), null);
           }
         })
         .collect(Collectors.toList());
 
-    ObservableList<GameModel> items = FXCollections.observableList(list);
-    TreeItem<GameModel> root = new RecursiveTreeItem<>(items, RecursiveTreeObject::getChildren);
+    ObservableList<Game> items = FXCollections.observableList(list);
+    TreeItem<Game> root = new RecursiveTreeItem<>(items, RecursiveTreeObject::getChildren);
     games.setRoot(root);
     games.setShowRoot(false);
     games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
+
+    games.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+    games.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+      Button btnLeft = (Button) scene.lookup("#btnLeft");
+      Button btnRight = (Button) scene.lookup("#btnRight");
+      if (newValue == null) {
+        btnLeft.setDisable(true);
+        btnRight.setDisable(true);
+      } else {
+        Game game = newValue.getValue();
+        Path path = game.getPath();
+        if (path == null) {
+          return;
+        }
+
+        boolean isJunction = game.getPath().getParent().equals(steamDir);
+        btnLeft.setDisable(isJunction);
+        btnRight.setDisable(!isJunction);
+      }
+    });
+
+    return items;
   }
 
   @Nullable
@@ -164,7 +217,7 @@ public class Main extends Application {
     Scene thisScene = control.getScene();
 
     Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
-    stage.getIcons().add(new FontIcon("gmi-settings:32:grey").snapshot(null, null));
+    //stage.getIcons().add(new FontIcon("gmi-settings:32:grey").snapshot(null, null));
     stage.setOnCloseRequest(closeEvent -> dialog.close());
 
     DialogPane content = FXMLLoader.load(Main.class.getResource("/layout/settings.fxml"), Bundle.BUNDLE);
@@ -239,6 +292,9 @@ public class Main extends Application {
       autoconfig.setTitle(Bundle.translate("autoconfig.title"));
       autoconfig.setHeaderText(null);
 
+      autoconfig.initModality(Modality.WINDOW_MODAL);
+      autoconfig.initOwner(scene.getWindow());
+
       Stage stage = (Stage) autoconfig.getDialogPane().getScene().getWindow();
       stage.getIcons().add(new FontIcon("gmi-info:16:red").snapshot(null, null));
       stage.setOnCloseRequest(closeEvent -> autoconfig.close());
@@ -297,5 +353,61 @@ public class Main extends Application {
     MultipleSelectionModel model = repos.getSelectionModel();
     repos.getItems().remove(model.getSelectedIndex());
     model.clearSelection();
+  }
+
+  @FXML
+  private void onTransferPressed(@NotNull ActionEvent event) {
+    Button source = (Button) event.getSource();
+    Scene scene = source.getScene();
+    TreeTableView<Game> games = (TreeTableView) scene.lookup("#games");
+    if (games.getSelectionModel().isEmpty()) {
+      return;
+    }
+
+    Path steamDir = Paths.get(((TextInputControl) scene.lookup("#commonDir")).getText());
+    if (steamDir.toString().isEmpty()) {
+      return;
+    }
+
+    Path linkedDir = Paths.get("D:\\games\\steam");
+    TreeItem<Game> item = games.getSelectionModel().getSelectedItem();
+    Game game = item.getValue();
+    Pane transferProgress = (Pane) scene.lookup("#transferProgress");
+
+    Path sourcePath = game.getPath();
+    Path targetPath = sourcePath.getParent().equals(steamDir) ? linkedDir : steamDir;
+    targetPath = targetPath.resolve(sourcePath.getFileName());
+    transferProgress.setVisible(true);
+
+    try {
+      if (targetPath.getParent().equals(steamDir) && Files.isDirectory(targetPath)) {
+        FileUtils.deleteDirectory(targetPath.toFile());
+      }
+
+      System.out.println(sourcePath + "->" + targetPath);
+      FileUtils.copyDirectory(sourcePath.toFile(), targetPath.toFile());
+      if (sourcePath.getParent().equals(steamDir)) {
+        FileUtils.deleteDirectory(sourcePath.toFile());
+        ProcessBuilder builder = new ProcessBuilder(
+            "cmd.exe", "/c", "mklink", "/J", sourcePath.toString(), targetPath.toString());
+        builder.redirectErrorStream(true);
+        Process p = builder.start();
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+          String line;
+          while ((line = r.readLine()) != null) {
+            System.out.println(line);
+          }
+        }
+      }
+
+      item.getValue().setPath(targetPath);
+      int selectedIndex = games.getSelectionModel().getSelectedIndex();
+      games.getSelectionModel().clearSelection();
+      games.getSelectionModel().select(selectedIndex);
+    } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      transferProgress.setVisible(false);
+    }
   }
 }

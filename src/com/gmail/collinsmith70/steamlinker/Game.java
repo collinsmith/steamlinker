@@ -3,19 +3,22 @@ package com.gmail.collinsmith70.steamlinker;
 import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.file.Path;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 
-public class GameModel extends RecursiveTreeObject<GameModel> {
+public class Game extends RecursiveTreeObject<Game> {
   final SimpleStringProperty title;
-  final SimpleStringProperty path;
+  final SimpleObjectProperty<Path> path;
   final SimpleObjectProperty<FileSize> size;
 
-  GameModel(@NotNull String title, @NotNull String path, long size) {
+  Game(@NotNull String title, @Nullable Path path) {
     this.title = new SimpleStringProperty(title);
-    this.path = new SimpleStringProperty(path);
-    this.size = new SimpleObjectProperty<>(new FileSize(size));
+    this.path = new SimpleObjectProperty<>(path);
+    this.size = new SimpleObjectProperty<>(null);
   }
 
   public String getTitle() {
@@ -26,11 +29,11 @@ public class GameModel extends RecursiveTreeObject<GameModel> {
     this.title.set(title);
   }
 
-  public String getPath() {
+  public Path getPath() {
     return path.get();
   }
 
-  public void setPath(String path) {
+  public void setPath(Path path) {
     this.path.set(path);
   }
 

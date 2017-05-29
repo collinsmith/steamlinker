@@ -32,7 +32,7 @@
                        onAction="#onChangeSteamDir"
                        style="-fx-padding: 4px;">
               <graphic>
-                <FontIcon iconLiteral="gmi-create:20"/>
+                <FontIcon iconLiteral="gmi-create:20:grey"/>
               </graphic>
             </JFXButton>
           </HBox>
