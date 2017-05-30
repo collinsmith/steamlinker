@@ -1,11 +1,16 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import com.jfoenix.controls.JFXListCell;
 import com.jfoenix.controls.JFXTreeTableColumn;
 import com.jfoenix.controls.JFXTreeTableView;
 import com.jfoenix.controls.RecursiveTreeItem;
 import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Appender;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -33,15 +38,18 @@ import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
@@ -49,8 +57,12 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.image.Image;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Pane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
@@ -60,6 +72,13 @@ import javafx.util.Pair;
 public class Main extends Application {
 
   private static final boolean DEBUG_REPOSITORIES_AUTOCONFIG = true;
+
+  private static final Logger LOG = Logger.getLogger(Main.class);
+  static {
+    PatternLayout layout = new PatternLayout("[%-5p] %c::%M - %m%n");
+    Appender appender = new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT);
+    LOG.addAppender(appender);
+  }
 
   private static final Preferences PREFERENCES = Preferences.userNodeForPackage(Main.class);
 
@@ -99,6 +118,27 @@ public class Main extends Application {
             game.setSize(new Game.FileSize(size));
           }
 
+          /*
+          Auto resize column...
+          try {
+            JFXTreeTableView<Game> games = (JFXTreeTableView) scene.lookup("#games");
+            Method resizeColumnToFitContent = TreeTableViewSkin.class.getDeclaredMethod
+                ("resizeColumnToFitContent", TreeTableColumn.class, int.class);
+            resizeColumnToFitContent.setAccessible(true);
+            TreeTableColumn column = games.getColumns()
+                .stream().filter(c -> c.getText().equals(Bundle.translate("table.size")))
+                .findFirst().get();
+            Platform.runLater(() -> {
+              try {
+                resizeColumnToFitContent.invoke(games.getSkin(), column, -1);
+              } catch (InvocationTargetException | IllegalAccessException e) {
+                e.printStackTrace();
+              }
+            });
+          } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+          }*/
+
           return null;
         }
       };
@@ -106,6 +146,43 @@ public class Main extends Application {
       new Thread(task).start();
       stage.setOnCloseRequest(event -> running[0] = false);
     }
+
+    configureRepos(scene);
+  }
+
+  private void configureRepos(@NotNull Scene scene) {
+    ListView<Path> repos = (ListView<Path>) scene.lookup("#repos");
+
+    String text = PREFERENCES.get("repos", "");
+    List<Path> list = Arrays.stream(text.split(";"))
+        .map(item -> Paths.get(item))
+        .collect(Collectors.toList());
+    ObservableList<Path> items = FXCollections.observableList(list);
+    repos.setItems(items);
+    repos.setCellFactory(param -> {
+      ListCell<Path> cell = new JFXListCell<Path>() {
+        private FontIcon icon = new FontIcon("gmi-folder:32:blue");
+
+        @Override
+        public void updateItem(Path item, boolean empty) {
+          super.updateItem(item, empty);
+          if (empty) {
+            return;
+          }
+          setGraphic(icon);
+          setText(item.toString());
+          setContentDisplay(ContentDisplay.TOP);
+          setAlignment(Pos.CENTER);
+        }
+      };
+
+      cell.setOnDragOver(event -> {
+        event.acceptTransferModes(TransferMode.MOVE);
+        event.consume();
+      });
+
+      return cell;
+    });
   }
 
   private ObservableList<Game> populateGames(@NotNull Scene scene, @NotNull Path steamDir) throws IOException {
@@ -123,7 +200,7 @@ public class Main extends Application {
         });
 
     JFXTreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn(Bundle.translate("table.path"));
-    //pathColumn.setCellValueFactory(new PropertyValueFactory<Game, String>("path"));
+    //pathColumn.setCellValueFactory(new PropertyValueFactory<Game, Path>("path"));
     pathColumn.setCellValueFactory(
         (TreeTableColumn.CellDataFeatures<Game, Path> param) -> {
           if (pathColumn.validateValue(param)) {
@@ -154,6 +231,40 @@ public class Main extends Application {
           }
         })
         .collect(Collectors.toList());
+
+    games.setRowFactory(param -> {
+      TreeTableRow<Game> row = new TreeTableRow<>();
+      row.setOnDragDetected(event -> {
+        TreeItem<Game> selected = games.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+          Dragboard db = games.startDragAndDrop(TransferMode.ANY);
+          Image img = new FontIcon("gmi-insert-drive-file").snapshot(null, null);
+          db.setDragView(img);
+          ClipboardContent content = new ClipboardContent();
+          content.putString(selected.getValue().getTitle());
+          db.setContent(content);
+          event.consume();
+        }
+      });
+
+      row.setOnDragDone(event -> {
+        event.setDropCompleted(true);
+        event.consume();
+      });
+
+      return row;
+    });
+
+    /*for (Game game : list) {
+      Path path = game.getPath();
+      if (path == null) {
+        continue;
+      }
+
+      BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+      FileTime time = attrs.lastAccessTime();
+      System.out.println(path + ": " + time);
+    }*/
 
     ObservableList<Game> items = FXCollections.observableList(list);
     TreeItem<Game> root = new RecursiveTreeItem<>(items, RecursiveTreeObject::getChildren);
@@ -384,7 +495,7 @@ public class Main extends Application {
         FileUtils.deleteDirectory(targetPath.toFile());
       }
 
-      System.out.println(sourcePath + "->" + targetPath);
+      LOG.info(sourcePath + "->" + targetPath);
       FileUtils.copyDirectory(sourcePath.toFile(), targetPath.toFile());
       if (sourcePath.getParent().equals(steamDir)) {
         FileUtils.deleteDirectory(sourcePath.toFile());
@@ -395,7 +506,7 @@ public class Main extends Application {
         try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
           String line;
           while ((line = r.readLine()) != null) {
-            System.out.println(line);
+            LOG.info(line);
           }
         }
       }

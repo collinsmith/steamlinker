@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXListView?>
+<?import com.jfoenix.controls.JFXProgressBar?>
 <?import com.jfoenix.controls.JFXTextField?>
+<?import com.jfoenix.controls.JFXTreeTableView?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Text?>
-<?import com.jfoenix.controls.JFXTreeTableView?>
-<?import com.jfoenix.controls.JFXProgressBar?>
-<?import javafx.scene.control.Label?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.112"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.gmail.collinsmith70.steamlinker.Main"
@@ -42,11 +44,14 @@
     </HBox>
   </top>
   <center>
-    <JFXTreeTableView fx:id="games">
-      <columnResizePolicy>
-        <JFXTreeTableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-      </columnResizePolicy>
-    </JFXTreeTableView>
+    <SplitPane dividerPositions="0.25">
+      <JFXListView fx:id="repos" prefWidth="128"/>
+      <JFXTreeTableView fx:id="games" HBox.hgrow="ALWAYS">
+        <columnResizePolicy>
+          <JFXTreeTableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+      </JFXTreeTableView>
+    </SplitPane>
   </center>
   <bottom>
     <HBox spacing="8" alignment="CENTER_LEFT">
@@ -60,7 +65,7 @@
       </JFXButton>
       <JFXButton fx:id="btnRight" onAction="#onTransferPressed" disable="true">
         <graphic>
-          <FontIcon iconLiteral="gmi-chevron-right:32:blue"/>
+          <FontIcon iconLiteral="gmi-link:32:blue"/>
         </graphic>
       </JFXButton>
       <HBox fx:id="transferProgress" visible="false" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
