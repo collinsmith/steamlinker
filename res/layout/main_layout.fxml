@@ -11,6 +11,8 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Text?>
+<?import com.jfoenix.controls.JFXProgressBar?>
+<?import javafx.scene.layout.StackPane?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.112"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.gmail.collinsmith70.steamlinker.Main"
@@ -37,6 +39,15 @@
                      style="-fx-padding: 4px;">
             <graphic>
               <FontIcon iconLiteral="gmi-create:20:grey"/>
+            </graphic>
+          </JFXButton>
+          <JFXButton fx:id="btnRefreshSteamDir"
+                     contentDisplay="GRAPHIC_ONLY"
+                     mnemonicParsing="false"
+                     style="-fx-padding: 4px;"
+                     disable="true">
+            <graphic>
+              <FontIcon iconLiteral="gmi-refresh:20:grey"/>
             </graphic>
           </JFXButton>
         </HBox>
@@ -78,6 +89,19 @@
               </graphic>
             </JFXButton>
           </VBox>
+        </HBox>
+      </VBox>
+      <VBox>
+        <Label text="Transfer Progress"/>
+        <StackPane>
+          <JFXProgressBar fx:id="transferProgress" prefHeight="16" progress="0"/>
+          <Label fx:id="transferPercent" text="0%"/>
+        </StackPane>
+        <HBox>
+          <HBox HBox.hgrow="ALWAYS">
+            <Label fx:id="transferETA" text="00:00:00"/>
+          </HBox>
+          <Label fx:id="transferBPS" text="0 Bps"/>
         </HBox>
       </VBox>
     </VBox>

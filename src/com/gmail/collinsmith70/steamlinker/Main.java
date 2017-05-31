@@ -194,6 +194,7 @@ public class Main extends Application {
 
     configureSteamDir(scene);
     configureEditSteamDir(scene);
+    configureRefreshSteamDir(scene);
     configureSteamRepo(scene);
     configureRepos(scene);
     configureGamesTable(scene);
@@ -250,6 +251,16 @@ public class Main extends Application {
           .ifPresent(dir -> PREFERENCES.put(Prefs.STEAM_DIR, dir.getAbsolutePath()));
       event.consume();
     });
+  }
+
+  private void configureRefreshSteamDir(@NotNull Scene scene) {
+    Button btnRefreshSteamDir = (Button) scene.lookup("#btnRefreshSteamDir");
+    btnRefreshSteamDir.setOnAction(event -> updateGames(scene));
+    if (this.steamDir.get() != null) {
+      btnRefreshSteamDir.setDisable(false);
+    } else {
+      this.steamDir.addListener((observable, oldValue, newValue) -> btnRefreshSteamDir.setDisable(false));
+    }
   }
 
   private void configureSteamRepo(@NotNull Scene scene) {
@@ -495,9 +506,8 @@ public class Main extends Application {
           return;
         }
 
-        for (File game : games) {
-          System.out.println(game + "->" + repo.resolve(game.toPath().getFileName()));
-        }
+        Node source = ((Node) event.getSource());
+        transfer(source, source.getScene(), games, repo.toFile(), steamDir.get().toFile());
       }
 
       event.acceptTransferModes(TransferMode.ANY);
@@ -652,7 +662,54 @@ public class Main extends Application {
     new Thread(task).start();
   }
 
-  private void transfer() {
+  private static void transfer(@NotNull Node node, @NotNull Scene scene, @NotNull List<File> games, @NotNull File repo, @NotNull File steamDir) {
+    ProgressBar transferProgress = (ProgressBar) scene.lookup("#transferProgress");
+    Label transferPercent = (Label) scene.lookup("#transferPercent");
+    Label transferETA = (Label) scene.lookup("#transferETA");
+    Label transferBPS = (Label) scene.lookup("#transferBPS");
 
+    CopyTask copyTask = new CopyTask(LOG, games, repo);
+    Thread t = new Thread(copyTask);
+    t.setName("steamlinker.copy");
+    t.start();
+
+    Task progress = new Task() {
+      @Override
+      protected Object call() throws Exception {
+        while (!t.isAlive()) {
+          Thread.sleep(10);
+        }
+
+        long bytesCopied, totalSize = copyTask.totalSize;
+        long previousBytes = 0L;
+        System.out.println("totalSize=" + totalSize);
+        while (true) {
+          bytesCopied = copyTask.bytesCopied;
+          double percent = (double) bytesCopied / totalSize;
+          long bytesSinceLast = bytesCopied - previousBytes;
+          long remainingBytes = totalSize - bytesCopied;
+          double eta = (double) remainingBytes / bytesSinceLast;
+          Platform.runLater(() -> {
+            transferProgress.setProgress(percent);
+            transferPercent.setText(String.format("%.0f%%", percent * 100.0));
+            transferBPS.setText(Utils.humanReadableByteCount(bytesSinceLast, true) + "ps");
+            transferETA.setText(String.format("%.0f:%02.0f:%02.0f", eta / 3600, (eta % 3600) / 60, eta % 60));
+          });
+
+          previousBytes = bytesCopied;
+          if (bytesCopied < totalSize) {
+            Thread.sleep(1000);
+          } else {
+            break;
+          }
+        }
+
+        LOG.info("done! " + bytesCopied + "/" + totalSize);
+
+        return null;
+      }
+    };
+
+    new Thread(progress).start();
   }
 }
