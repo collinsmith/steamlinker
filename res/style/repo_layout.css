@@ -1,0 +1,4 @@
+#repoItem:hover {
+  -fx-border-color: lightskyblue;
+  -fx-border-insets: -1;
+}

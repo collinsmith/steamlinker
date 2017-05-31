@@ -1,59 +1,66 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
+
 import com.jfoenix.controls.JFXListCell;
 import com.jfoenix.controls.JFXTreeTableColumn;
+import com.jfoenix.controls.JFXTreeTableRow;
 import com.jfoenix.controls.JFXTreeTableView;
 import com.jfoenix.controls.RecursiveTreeItem;
 import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Appender;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.beans.property.ListProperty;
+import javafx.beans.property.ListPropertyBase;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ObjectPropertyBase;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.TextField;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
@@ -61,190 +68,452 @@ import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.image.Image;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.util.Pair;
+import javafx.util.StringConverter;
 
 public class Main extends Application {
 
-  private static final boolean DEBUG_REPOSITORIES_AUTOCONFIG = true;
+  private static final boolean RESET_PREFERENCES = false;
+  private static final boolean DEBUG_PREFERENCES = true;
+  private static final boolean DEBUG_PROPERTIES = true;
+  private static final boolean DEBUG_REPO_AUTOCONFIG = true;
 
   private static final Logger LOG = Logger.getLogger(Main.class);
   static {
     PatternLayout layout = new PatternLayout("[%-5p] %c::%M - %m%n");
-    Appender appender = new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT);
-    LOG.addAppender(appender);
+    LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
   }
 
   private static final Preferences PREFERENCES = Preferences.userNodeForPackage(Main.class);
+  static {
+    if (RESET_PREFERENCES) {
+      try {
+        LOG.debug("Clearing preferences...");
+        PREFERENCES.clear();
+      } catch (BackingStoreException e) {
+        LOG.error(e.getMessage(), e);
+      }
+    }
+
+    if (DEBUG_PREFERENCES) {
+      PREFERENCES.addPreferenceChangeListener(event -> LOG.debug(event.getKey() + "->" + event.getNewValue()));
+    }
+  }
+  private interface Prefs {
+    String STEAM_DIR = "config.dirs.steam";
+    String REPOS = "config.repos";
+  }
 
   public static void main(String[] args) {
     launch(args);
   }
 
-  @Override
-  public void start(@NotNull Stage stage) throws IOException {
-    Parent root = FXMLLoader.load(Main.class.getResource("/layout/main.fxml"), Bundle.BUNDLE);
-    Scene scene = new Scene(root);
-
-    stage.setTitle(Bundle.translate("name"));
-    stage.getIcons().add(new Image("mipmap/icon_16x16.png"));
-    stage.getIcons().add(new Image("mipmap/icon_32x32.png"));
-    stage.setScene(scene);
-    stage.show();
-
-    boolean[] running = { true };
-    Path steamDir = configureSteamDir(scene);
-    if (steamDir != null) {
-      ObservableList<Game> games = populateGames(scene, steamDir);
-      Task task = new Task() {
-        @Override
-        protected Object call() throws Exception {
-          for (Game game : games) {
-            if (!running[0]) {
-              break;
-            }
-
-            Path path = game.getPath();
-            if (path == null) {
-              continue;
-            }
-
-            long size = FileUtils.sizeOfDirectory(path.toFile());
-            game.setSize(new Game.FileSize(size));
-          }
-
-          /*
-          Auto resize column...
-          try {
-            JFXTreeTableView<Game> games = (JFXTreeTableView) scene.lookup("#games");
-            Method resizeColumnToFitContent = TreeTableViewSkin.class.getDeclaredMethod
-                ("resizeColumnToFitContent", TreeTableColumn.class, int.class);
-            resizeColumnToFitContent.setAccessible(true);
-            TreeTableColumn column = games.getColumns()
-                .stream().filter(c -> c.getText().equals(Bundle.translate("table.size")))
-                .findFirst().get();
-            Platform.runLater(() -> {
-              try {
-                resizeColumnToFitContent.invoke(games.getSkin(), column, -1);
-              } catch (InvocationTargetException | IllegalAccessException e) {
-                e.printStackTrace();
-              }
-            });
-          } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-          }*/
-
-          return null;
-        }
-      };
-
-      new Thread(task).start();
-      stage.setOnCloseRequest(event -> running[0] = false);
+  // FIXME: this doesn't resolve correctly in lambdas if not static final
+  private static final ObjectProperty<Path> steamDir = new ObjectPropertyBase<Path>() {
+    @Override
+    public Object getBean() {
+      return null;
     }
 
+    @Override
+    public String getName() {
+      return "steamDir";
+    }
+  };
+  private static final StringConverter<Path> PATH_STRING_CONVERTER = new StringConverter<Path>() {
+    @Override
+    @NotNull
+    public String toString(@Nullable Path path) {
+      return path != null ? path.toString() : "";
+    }
+
+    @Override
+    @Nullable
+    public Path fromString(@Nullable String string) {
+      return string != null && !string.isEmpty() ? Paths.get(string) : null;
+    }
+  };
+
+  // FIXME: this doesn't resolve correctly in lambdas if not static final
+  private static final ListProperty<Path> repos = new ListPropertyBase<Path>() {
+    @Override
+    public Object getBean() {
+      return null;
+    }
+
+    @Override
+    public String getName() {
+      return "repos";
+    }
+  };
+  private static final StringConverter<ObservableList<Path>> PATHS_STRING_CONVERTER = new StringConverter<ObservableList<Path>>() {
+    @Override
+    @NotNull
+    public String toString(@Nullable ObservableList<Path> repos) {
+      return repos != null
+          ? String.join(";", repos.stream()
+              .map(Path::toString)
+              .collect(Collectors.joining(";")))
+          : "";
+    }
+
+    @Override
+    @Nullable
+    public ObservableList<Path> fromString(@Nullable String string) {
+      return string != null && !string.isEmpty()
+          ? FXCollections.observableList(
+              Arrays.stream(string.split(";"))
+                  .map(item -> Paths.get(item))
+                  .collect(Collectors.toList()))
+          : FXCollections.observableArrayList();
+    }
+  };
+
+  @Override
+  public void start(Stage stage) throws Exception {
+    URL location = Main.class.getResource("/layout/main_layout.fxml");
+    Parent root = FXMLLoader.load(location, Bundle.BUNDLE);
+    Scene scene = new Scene(root);
+
+    stage.setTitle(Bundle.get("name"));
+    doIcons(stage.getIcons());
+    stage.setScene(scene);
+
+    bindProperties();
+
+    configureSteamDir(scene);
+    configureEditSteamDir(scene);
+    configureSteamRepo(scene);
     configureRepos(scene);
+    configureGamesTable(scene);
+
+    stage.show();
+  }
+
+  @NotNull
+  private ObservableList<Image> doIcons(@NotNull ObservableList<Image> icons) {
+    icons.add(new Image("mipmap/icon_16x16.png"));
+    icons.add(new Image("mipmap/icon_32x32.png"));
+    return icons;
+  }
+
+  private void bindProperties() {
+    LOG.debug("Binding properties...");
+    if (DEBUG_PROPERTIES) {
+      steamDir.addListener(((observable, oldValue, newValue) -> LOG.debug("steamDir->" + steamDir.get())));
+      repos.addListener(((observable, oldValue, newValue) -> LOG.debug("repos->" + repos.get())));
+    }
+
+    steamDir.set(PATH_STRING_CONVERTER.fromString(PREFERENCES.get(Prefs.STEAM_DIR, "")));
+    repos.set(PATHS_STRING_CONVERTER.fromString(PREFERENCES.get(Prefs.REPOS, "")));
+
+    // Some change-listeners set by controllers
+    //steamDir.addListener((observable, oldValue, newValue) -> PREFERENCES.put(Prefs.STEAM_DIR, PATH_STRING_CONVERTER.toString(newValue)));
+    repos.addListener((observable, oldValue, newValue) -> PREFERENCES.put(Prefs.REPOS, PATHS_STRING_CONVERTER.toString(newValue)));
+  }
+
+  @Nullable
+  private Path configureSteamDir(@NotNull Scene scene) {
+    TextInputControl tfSteamDir = (TextInputControl) scene.lookup("#tfSteamDir");
+    tfSteamDir.textProperty().bindBidirectional(this.steamDir, PATH_STRING_CONVERTER);
+    PREFERENCES.addPreferenceChangeListener(event -> {
+      if (event.getKey().equals(Prefs.STEAM_DIR)) {
+        Platform.runLater(() -> tfSteamDir.setText(event.getNewValue()));
+      }
+    });
+
+    return this.steamDir.get();
+  }
+
+  private void configureEditSteamDir(@NotNull Scene scene) {
+    Button btnEditSteamDir = (Button) scene.lookup("#btnEditSteamDir");
+    btnEditSteamDir.setOnAction(event -> {
+      DirectoryChooser directoryChooser = new DirectoryChooser();
+      Path steamDir = this.steamDir.get();
+      if (steamDir != null) {
+        directoryChooser.setInitialDirectory(steamDir.toFile());
+      }
+
+      Optional.ofNullable(directoryChooser.showDialog(scene.getWindow()))
+          .filter(dir -> DEBUG_REPO_AUTOCONFIG || !dir.toPath().equals(steamDir))
+          .ifPresent(dir -> PREFERENCES.put(Prefs.STEAM_DIR, dir.getAbsolutePath()));
+      event.consume();
+    });
+  }
+
+  private void configureSteamRepo(@NotNull Scene scene) {
+    Path steamDir = this.steamDir.get();
+
+    Pane repoItem = (Pane) scene.lookup("#repoItem");
+    scene.getStylesheets().add("style/repo_layout.css");
+
+    Label label = (Label) repoItem.lookup("#label");
+    label.setText(Bundle.get("path.to.common"));
+
+    ProgressBar progressBar = (ProgressBar) repoItem.lookup("#progressBar");
+    Label progressBarText = (Label) repoItem.lookup("#progressBarText");
+    ChangeListener<Path> pathChangeListener = (observable, oldValue, newValue) -> {
+      File steamDirFile = newValue.toFile();
+      long usableSpace = steamDirFile.getUsableSpace();
+      long totalSpace = steamDirFile.getTotalSpace();
+      progressBar.setProgress(1.0 - ((double) usableSpace / totalSpace));
+      progressBarText.setText(Bundle.get("repo.size",
+          Utils.humanReadableByteCount(usableSpace, true),
+          Utils.humanReadableByteCount(totalSpace, true)));
+      updateGames(scene);
+    };
+
+    if (steamDir != null) {
+      pathChangeListener.changed(null, null, steamDir);
+    }
+
+    this.steamDir.addListener(pathChangeListener);
+    this.steamDir.addListener(((observable, oldValue, newValue) -> {
+      Alert autoConfig = new Alert(Alert.AlertType.CONFIRMATION);
+      autoConfig.setTitle(Bundle.get("autoconfig.title"));
+      autoConfig.setContentText(Bundle.get("autoconfig.message"));
+      autoConfig.setHeaderText(null);
+      autoConfig.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+      autoConfig.initModality(Modality.WINDOW_MODAL);
+      autoConfig.initOwner(scene.getWindow());
+      autoConfig.showAndWait()
+          .filter(result -> result == ButtonType.YES)
+          .ifPresent(result -> autoConfigRepositories(scene));
+    }));
+
+    EventHandler<DragEvent> dragEventHandler = new RepoDragEventHandler(this.steamDir);
+    repoItem.setOnDragOver(dragEventHandler);
+    repoItem.setOnDragDropped(dragEventHandler);
+    repoItem.setOnMouseClicked(new RepoContextMenu(this.steamDir, repoItem));
+  }
+
+  private void autoConfigRepositories(@NotNull Scene scene) {
+    Task task = new Task() {
+      @Override
+      protected Object call() throws Exception {
+        Path steamDir = Main.this.steamDir.get();
+        Set<Path> repos = Sets.newHashSet(Main.this.repos.get());
+        try {
+          Files.list(steamDir)
+              .filter(path -> {
+                try {
+                  return JunctionSupport.isJunctionOrSymlink(path);
+                } catch (IOException e) {
+                  LOG.error(e.getMessage(), e);
+                  return false;
+                }
+              })
+              .forEach(symlink -> {
+                try {
+                  repos.add(symlink.toRealPath().getParent());
+                } catch (IOException e) {
+                  LOG.error(e.getMessage(), e);
+                }
+              });
+        } catch (IOException e) {
+          LOG.error(e.getMessage(), e);
+        }
+
+        if (Main.this.repos.size() < repos.size()) {
+          Main.this.repos.set(FXCollections.observableArrayList(repos));
+        }
+
+        return null;
+      }
+    };
+
+    new Thread(task).start();
   }
 
   private void configureRepos(@NotNull Scene scene) {
     ListView<Path> repos = (ListView<Path>) scene.lookup("#repos");
-
-    String text = PREFERENCES.get("repos", "");
-    List<Path> list = Arrays.stream(text.split(";"))
-        .map(item -> Paths.get(item))
-        .collect(Collectors.toList());
-    ObservableList<Path> items = FXCollections.observableList(list);
-    repos.setItems(items);
     repos.setCellFactory(param -> {
       ListCell<Path> cell = new JFXListCell<Path>() {
-        private FontIcon icon = new FontIcon("gmi-folder:32:blue");
-
         @Override
-        public void updateItem(Path item, boolean empty) {
-          super.updateItem(item, empty);
+        public void updateItem(Path path, boolean empty) {
+          super.updateItem(path, empty);
           if (empty) {
             return;
           }
-          setGraphic(icon);
-          setText(item.toString());
-          setContentDisplay(ContentDisplay.TOP);
-          setAlignment(Pos.CENTER);
+
+          try {
+            URL location = Main.class.getResource("/layout/repo_layout.fxml");
+            Pane repoItem = FXMLLoader.load(location);
+
+            Label label = (Label) repoItem.lookup("#label");
+            label.setText(path.toString());
+
+            ProgressBar progressBar = (ProgressBar) repoItem.lookup("#progressBar");
+            Label progressBarText = (Label) repoItem.lookup("#progressBarText");
+
+            File repoFile = path.toFile();
+            long usableSpace = repoFile.getUsableSpace();
+            long totalSpace = repoFile.getTotalSpace();
+            progressBar.setProgress(1.0 - ((double) usableSpace / totalSpace));
+            progressBarText.setText(Bundle.get("repo.size",
+                Utils.humanReadableByteCount(usableSpace, true),
+                Utils.humanReadableByteCount(totalSpace, true)));
+
+            setGraphic(repoItem);
+            prefWidthProperty().bind(getListView().widthProperty().subtract(2));
+            setMaxWidth(Control.USE_PREF_SIZE);
+          } catch (IOException e) {
+            LOG.error(e.getMessage(), e);
+          }
         }
       };
 
-      cell.setOnDragOver(event -> {
-        event.acceptTransferModes(TransferMode.MOVE);
-        event.consume();
-      });
-
+      cell.setOnDragOver(new RepoDragEventHandler(cell.itemProperty()));
+      cell.setOnMouseClicked(new RepoContextMenu(cell.itemProperty(), cell));
       return cell;
     });
+    ChangeListener<ObservableList<Path>> reposChangeListener = (observable, oldValue, newValue) -> {
+      repos.setItems(newValue);
+    };
+
+    reposChangeListener.changed(null, null, this.repos.get());
+    this.repos.addListener(reposChangeListener);
+
+    MultipleSelectionModel<Path> selectionModel = repos.getSelectionModel();
+    selectionModel.selectedIndexProperty().addListener(((observable, oldValue, newValue) -> {
+      Button btnRemoveRepo = (Button) scene.lookup("#btnRemoveRepo");
+      btnRemoveRepo.setDisable(newValue.intValue() == -1);
+    }));
+
+    repos.setOnMouseClicked((event -> {
+      if (event.getButton() == MouseButton.PRIMARY && Main.this.repos.isEmpty()) {
+        Button btnAddRepo = (Button) scene.lookup("#btnAddRepo");
+        btnAddRepo.fire();
+        event.consume();
+      }
+    }));
+
+    Node placeholder = repos.getPlaceholder();
+    Label label = (Label) placeholder.lookup("#label");
+    label.setText(Bundle.get("repo.empty"));
   }
 
-  private ObservableList<Game> populateGames(@NotNull Scene scene, @NotNull Path steamDir) throws IOException {
-    JFXTreeTableView<Game> games = (JFXTreeTableView) scene.lookup("#games");
+  private static class RepoContextMenu implements EventHandler<MouseEvent> {
+    @NotNull final ContextMenu contextMenu;
+    @NotNull final Node anchor;
 
-    JFXTreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn(Bundle.translate("table.title"));
-    //titleColumn.setCellValueFactory(new PropertyValueFactory<Game, String>("title"));
-    titleColumn.setCellValueFactory(
-        (TreeTableColumn.CellDataFeatures<Game, String> param) -> {
-          if (titleColumn.validateValue(param)) {
-            return param.getValue().getValue().title;
-          } else {
-            return titleColumn.getComputedValue(param);
-          }
+    RepoContextMenu(@NotNull ObjectProperty<Path> repo, @NotNull Node anchor) {
+      this.anchor = anchor;
+      MenuItem browse = new MenuItem(Bundle.get("browse"));
+      browse.setOnAction(event -> {
+        try {
+          Runtime.getRuntime().exec("explorer.exe " + repo.get());
+        } catch (IOException e) {
+          LOG.error(e.getMessage(), e);
+        }
+      });
+
+      contextMenu = new ContextMenu();
+      contextMenu.getItems().add(browse);
+    }
+
+    @Override
+    public void handle(@NotNull MouseEvent event) {
+      if (event.getButton() != MouseButton.SECONDARY) {
+        return;
+      }
+
+      contextMenu.show(anchor, event.getScreenX(), event.getScreenY());
+      event.consume();
+    }
+  }
+
+  private static class RepoDragEventHandler implements EventHandler<DragEvent> {
+    @NotNull final ObjectProperty<Path> repo;
+
+    RepoDragEventHandler(@NotNull ObjectProperty<Path> repo) {
+      this.repo = repo;
+    }
+
+    @Override
+    public void handle(@NotNull DragEvent event) {
+      Object content = event.getDragboard().getContent(DataFormat.FILES);
+      if (content == null) {
+        return;
+      }
+
+      List<File> games = (List<File>) content;
+      File game = games.get(0);
+      if (repo.get().equals(game.toPath().getParent())) {
+        return;
+      }
+
+      event.acceptTransferModes(TransferMode.ANY);
+      event.consume();
+    }
+  }
+
+  @FXML
+  private void onAddRepo(@NotNull ActionEvent event) {
+    Scene scene = ((Node) event.getSource()).getScene();
+    DirectoryChooser directoryChooser = new DirectoryChooser();
+    Optional.ofNullable(directoryChooser.showDialog(scene.getWindow()))
+        .ifPresent(file -> {
+          repos.get().add(file.toPath());
         });
+    event.consume();
+  }
 
-    JFXTreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn(Bundle.translate("table.path"));
-    //pathColumn.setCellValueFactory(new PropertyValueFactory<Game, Path>("path"));
-    pathColumn.setCellValueFactory(
-        (TreeTableColumn.CellDataFeatures<Game, Path> param) -> {
-          if (pathColumn.validateValue(param)) {
-            return param.getValue().getValue().path;
-          } else {
-            return pathColumn.getComputedValue(param);
-          }
-        });
+  @FXML
+  private void onRemoveRepo(@NotNull ActionEvent event) {
+    Scene scene = ((Node) event.getSource()).getScene();
+    ListView<Path> repos = (ListView<Path>) scene.lookup("#repos");
+    MultipleSelectionModel model = repos.getSelectionModel();
+    repos.getItems().remove(model.getSelectedIndex());
+    model.clearSelection();
+    event.consume();
+  }
 
-    JFXTreeTableColumn<Game, Game.FileSize> sizeColumn = new JFXTreeTableColumn(Bundle.translate("table.size"));
-    //sizeColumn.setCellValueFactory(new PropertyValueFactory<Game, String>("size"));
+  private void configureGamesTable(@NotNull Scene scene) {
+    TreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
+
+    TreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn<>();
+    titleColumn.setText(Bundle.get("table.title"));
+    titleColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().title.get()));
+
+    TreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn<>();
+    pathColumn.setText(Bundle.get("table.path"));
+    pathColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().repo.get()));
+    //pathColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
+
+    TreeTableColumn<Game, Game.FileSize> sizeColumn = new JFXTreeTableColumn<>();
+    sizeColumn.setText(Bundle.get("table.size"));
+    sizeColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().size.get()));
     sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
-    sizeColumn.setCellValueFactory(
-        (TreeTableColumn.CellDataFeatures<Game, Game.FileSize> param) -> {
-          if (sizeColumn.validateValue(param)) {
-            return param.getValue().getValue().size;
-          } else {
-            return sizeColumn.getComputedValue(param);
-          }
-        });
 
-    List<Game> list = Files.list(steamDir)
-        .map(game -> {
-          try {
-            return new Game(game.getFileName().toString(), game.toRealPath());
-          } catch (IOException e) {
-            return new Game(game.getFileName().toString(), null);
-          }
-        })
-        .collect(Collectors.toList());
+    games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
 
     games.setRowFactory(param -> {
-      TreeTableRow<Game> row = new TreeTableRow<>();
+      TreeTableRow<Game> row = new JFXTreeTableRow<>();
       row.setOnDragDetected(event -> {
-        TreeItem<Game> selected = games.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-          Dragboard db = games.startDragAndDrop(TransferMode.ANY);
-          Image img = new FontIcon("gmi-insert-drive-file").snapshot(null, null);
-          db.setDragView(img);
-          ClipboardContent content = new ClipboardContent();
-          content.putString(selected.getValue().getTitle());
-          db.setContent(content);
-          event.consume();
+        TreeItem<Game> selectedItem = games.getSelectionModel().getSelectedItem();
+        if (selectedItem == null) {
+          return;
         }
+
+        Dragboard db = games.startDragAndDrop(TransferMode.ANY);
+        SnapshotParameters sp = new SnapshotParameters();
+        sp.setFill(Color.TRANSPARENT);
+        db.setDragView(row.snapshot(sp, null));
+        ClipboardContent content = new ClipboardContent();
+        content.putFiles(ImmutableList.of(selectedItem.getValue().getPath().toFile()));
+        db.setContent(content);
+        event.consume();
       });
 
       row.setOnDragDone(event -> {
@@ -255,270 +524,78 @@ public class Main extends Application {
       return row;
     });
 
-    /*for (Game game : list) {
-      Path path = game.getPath();
-      if (path == null) {
-        continue;
+    games.setOnMouseClicked(event -> {
+      if (event.getButton() == MouseButton.PRIMARY
+          && (games.getRoot() == null || games.getRoot().getChildren().isEmpty())) {
+        Button btnEditSteamDir = (Button) scene.lookup("#btnEditSteamDir");
+        btnEditSteamDir.fire();
+        event.consume();
       }
+    });
 
-      BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-      FileTime time = attrs.lastAccessTime();
-      System.out.println(path + ": " + time);
-    }*/
+    Node placeholder = games.getPlaceholder();
+    Label label = (Label) placeholder.lookup("#label");
+    label.setText(Bundle.get("path.to.common.empty"));
+  }
 
-    ObservableList<Game> items = FXCollections.observableList(list);
-    TreeItem<Game> root = new RecursiveTreeItem<>(items, RecursiveTreeObject::getChildren);
-    games.setRoot(root);
-    games.setShowRoot(false);
-    games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
+  private synchronized void updateGames(@NotNull Scene scene) {
+    JFXTreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
+    Node placeholder = games.getPlaceholder();
 
-    games.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-    games.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-      Button btnLeft = (Button) scene.lookup("#btnLeft");
-      Button btnRight = (Button) scene.lookup("#btnRight");
-      if (newValue == null) {
-        btnLeft.setDisable(true);
-        btnRight.setDisable(true);
-      } else {
-        Game game = newValue.getValue();
-        Path path = game.getPath();
-        if (path == null) {
-          return;
+    Node spinner = placeholder.lookup("#spinner");
+    Node label = placeholder.lookup("#label");
+    spinner.setVisible(true);
+    label.setVisible(false);
+
+    Task task = new Task() {
+      @Override
+      protected Object call() throws Exception {
+        ObservableList<Game> items = null;
+        try {
+          List<Game> dirs = Files.list(steamDir.get())
+              .map(game -> {
+                try {
+                  return new Game(game.getFileName().toString(), game.toRealPath());
+                } catch (IOException e) {
+                  LOG.warn("Broken link detected: " + game, e);
+                  return new Game(game.getFileName().toString(), null);
+                }
+              })
+              .collect(Collectors.toList());
+
+          items = FXCollections.observableList(dirs);
+          TreeItem<Game> rootItem = new RecursiveTreeItem<>(items,
+              RecursiveTreeObject::getChildren);
+          Platform.runLater(() -> {
+            games.setRoot(rootItem);
+            games.setShowRoot(false);
+          });
+        } catch (IOException e) {
+          LOG.error(e.getMessage(), e);
+        } finally {
+          Platform.runLater(() -> {
+            spinner.setVisible(false);
+            label.setVisible(true);
+          });
         }
 
-        boolean isJunction = game.getPath().getParent().equals(steamDir);
-        btnLeft.setDisable(isJunction);
-        btnRight.setDisable(!isJunction);
-      }
-    });
-
-    return items;
-  }
-
-  @Nullable
-  private Path configureSteamDir(@NotNull Scene scene) {
-    TextInputControl steamDir = (TextInputControl) scene.lookup("#commonDir");
-    String text = PREFERENCES.get("common.dir", "");
-    steamDir.setText(text);
-    return !text.isEmpty() ? Paths.get(text) : null;
-  }
-
-  private void configureRepositories(@NotNull Scene scene) {
-    String value = PREFERENCES.get("repos", "");
-    List<String> paths = Arrays.asList(value.split(";"));
-    ObservableList<String> items = FXCollections.observableList(paths);
-
-    ListView repos = (ListView) scene.lookup("#repos");
-    repos.setItems(items);
-
-    MultipleSelectionModel selectionModel = repos.getSelectionModel();
-    selectionModel.clearSelection();
-    selectionModel.setSelectionMode(SelectionMode.SINGLE);
-    selectionModel.selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
-      Button removeRepository = (Button) scene.lookup("#removeRepository");
-      removeRepository.setDisable((int) newValue == -1);
-    });
-  }
-
-  @FXML
-  private void onSettingsPressed(@NotNull ActionEvent event) throws IOException {
-    Dialog<Pair<ButtonType, Map<String, Object>>> dialog = new Dialog<>();
-    dialog.setTitle(Bundle.translate("settings"));
-    Control control = (Control) event.getSource();
-    Scene thisScene = control.getScene();
-
-    Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
-    //stage.getIcons().add(new FontIcon("gmi-settings:32:grey").snapshot(null, null));
-    stage.setOnCloseRequest(closeEvent -> dialog.close());
-
-    DialogPane content = FXMLLoader.load(Main.class.getResource("/layout/settings.fxml"), Bundle.BUNDLE);
-
-    dialog.initModality(Modality.WINDOW_MODAL);
-    dialog.initOwner(thisScene.getWindow());
-    dialog.setDialogPane(content);
-    dialog.setResizable(true);
-    Scene scene = content.getScene();
-    configureSteamDir(scene);
-    configureRepositories(scene);
-    dialog.setResultConverter(buttonType -> {
-      if (buttonType != ButtonType.APPLY) {
-        return null;
-      }
-
-      TextInputControl initialDirectory = (TextInputControl) scene.lookup("#commonDir");
-
-      Map<String, Object> result = new HashMap<>();
-      result.put("#commonDir", initialDirectory.getText());
-
-      ListView repos = (ListView) scene.lookup("#repos");
-      ObservableList items = repos.getItems();
-      result.put("#repos", String.join(";", items));
-
-      return new Pair<>(buttonType, result);
-    });
-    dialog.showAndWait()
-        .filter(response -> response.getKey() == ButtonType.APPLY)
-        .ifPresent(response -> applySettings(thisScene, response.getValue()));
-  }
-
-  private void applySettings(@NotNull Scene thisScene, @NotNull Map<String, Object> map) {
-    String initialDirectory = (String) map.get("#commonDir");
-    PREFERENCES.put("common.dir", initialDirectory);
-
-    TextField steamDir = (TextField) thisScene.lookup("#commonDir");
-    steamDir.setText(initialDirectory);
-
-    String repos = (String) map.get("#repos");
-    PREFERENCES.put("repos", repos);
-  }
-
-  @FXML
-  private void onChangeSteamDir(@NotNull ActionEvent event) {
-    Scene scene = ((Node) event.getSource()).getScene();
-    TextInputControl initialDirectory = (TextInputControl) scene.lookup("#commonDir");
-    String text = initialDirectory.getText();
-    Path path = Paths.get(text);
-
-    File existingFile = !text.isEmpty() && Files.isDirectory(path)
-        ? path.toFile()
-        : null;
-
-    DirectoryChooser directoryChooser = new DirectoryChooser();
-    if (existingFile != null) {
-      directoryChooser.setInitialDirectory(existingFile);
-    }
-
-    File steamDir = directoryChooser.showDialog(scene.getWindow());
-    if (steamDir != null) {
-      if (existingFile != null && existingFile.equals(steamDir) && !DEBUG_REPOSITORIES_AUTOCONFIG) {
-        return;
-      }
-
-      String steamDirPath = steamDir.getAbsolutePath();
-      initialDirectory.setText(steamDirPath);
-
-      Alert autoconfig = new Alert(Alert.AlertType.CONFIRMATION,
-          Bundle.translate("autoconfig.message"),
-          ButtonType.YES, ButtonType.NO);
-      autoconfig.setTitle(Bundle.translate("autoconfig.title"));
-      autoconfig.setHeaderText(null);
-
-      autoconfig.initModality(Modality.WINDOW_MODAL);
-      autoconfig.initOwner(scene.getWindow());
-
-      Stage stage = (Stage) autoconfig.getDialogPane().getScene().getWindow();
-      stage.getIcons().add(new FontIcon("gmi-info:16:red").snapshot(null, null));
-      stage.setOnCloseRequest(closeEvent -> autoconfig.close());
-
-      autoconfig.showAndWait()
-          .filter(result -> result == ButtonType.YES)
-          .ifPresent(result -> autoconfigRepositories(scene, steamDirPath));
-    }
-  }
-
-  private void autoconfigRepositories(@NotNull Scene scene, @NotNull String steamDirPath) {
-    Path path = Paths.get(steamDirPath);
-    Set<String> uniqueRepositories = new HashSet<>();
-    try {
-      Files.list(path)
-          .filter(p -> {
-            try {
-              return JunctionSupport.isJunctionOrSymlink(p);
-            } catch (IOException e) {
-              e.printStackTrace();
-              return false;
+        if (items != null) {
+          for (Game game : items) {
+            Path path = game.getPath();
+            if (path == null) {
+              continue;
             }
-          })
-          .forEach(symlink -> {
-            try {
-              uniqueRepositories.add(symlink.toRealPath().getParent().toString());
-            } catch (IOException e) {
-              e.printStackTrace();
-            }
-          });
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
 
-    ObservableList<String> items = FXCollections.observableArrayList(uniqueRepositories);
-    ListView repos = (ListView) scene.lookup("#repos");
-    repos.setItems(items);
-  }
-
-  @FXML
-  private void onAddRepo(@NotNull ActionEvent event) {
-    Scene scene = ((Node) event.getSource()).getScene();
-    DirectoryChooser directoryChooser = new DirectoryChooser();
-    File steamDir = directoryChooser.showDialog(scene.getWindow());
-    if (steamDir != null) {
-      String steamDirPath = steamDir.getAbsolutePath();
-      ListView repos = (ListView) scene.lookup("#repos");
-      repos.getItems().add(steamDirPath);
-    }
-  }
-
-  @FXML
-  private void onRemoveRepo(@NotNull ActionEvent event) {
-    Scene scene = ((Node) event.getSource()).getScene();
-    ListView repos = (ListView) scene.lookup("#repos");
-    MultipleSelectionModel model = repos.getSelectionModel();
-    repos.getItems().remove(model.getSelectedIndex());
-    model.clearSelection();
-  }
-
-  @FXML
-  private void onTransferPressed(@NotNull ActionEvent event) {
-    Button source = (Button) event.getSource();
-    Scene scene = source.getScene();
-    TreeTableView<Game> games = (TreeTableView) scene.lookup("#games");
-    if (games.getSelectionModel().isEmpty()) {
-      return;
-    }
-
-    Path steamDir = Paths.get(((TextInputControl) scene.lookup("#commonDir")).getText());
-    if (steamDir.toString().isEmpty()) {
-      return;
-    }
-
-    Path linkedDir = Paths.get("D:\\games\\steam");
-    TreeItem<Game> item = games.getSelectionModel().getSelectedItem();
-    Game game = item.getValue();
-    Pane transferProgress = (Pane) scene.lookup("#transferProgress");
-
-    Path sourcePath = game.getPath();
-    Path targetPath = sourcePath.getParent().equals(steamDir) ? linkedDir : steamDir;
-    targetPath = targetPath.resolve(sourcePath.getFileName());
-    transferProgress.setVisible(true);
-
-    try {
-      if (targetPath.getParent().equals(steamDir) && Files.isDirectory(targetPath)) {
-        FileUtils.deleteDirectory(targetPath.toFile());
-      }
-
-      LOG.info(sourcePath + "->" + targetPath);
-      FileUtils.copyDirectory(sourcePath.toFile(), targetPath.toFile());
-      if (sourcePath.getParent().equals(steamDir)) {
-        FileUtils.deleteDirectory(sourcePath.toFile());
-        ProcessBuilder builder = new ProcessBuilder(
-            "cmd.exe", "/c", "mklink", "/J", sourcePath.toString(), targetPath.toString());
-        builder.redirectErrorStream(true);
-        Process p = builder.start();
-        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
-          String line;
-          while ((line = r.readLine()) != null) {
-            LOG.info(line);
+            long size = FileUtils.sizeOfDirectory(path.toFile());
+            game.setSize(new Game.FileSize(size));
+            Platform.runLater(() -> games.refresh());
           }
         }
-      }
 
-      item.getValue().setPath(targetPath);
-      int selectedIndex = games.getSelectionModel().getSelectedIndex();
-      games.getSelectionModel().clearSelection();
-      games.getSelectionModel().select(selectedIndex);
-    } catch (IOException e) {
-      e.printStackTrace();
-    } finally {
-      transferProgress.setVisible(false);
-    }
+        return null;
+      }
+    };
+
+    new Thread(task).start();
   }
 }

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXListView?>
+<?import com.jfoenix.controls.JFXTextField?>
+<?import com.jfoenix.controls.JFXTreeTableView?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Text?>
+<BorderPane xmlns="http://javafx.com/javafx/8.0.112"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.gmail.collinsmith70.steamlinker.Main"
+            minWidth="640" minHeight="480"
+            maxWidth="Infinity" maxHeight="Infinity"
+            prefWidth="800.0" prefHeight="600.0"
+            style="-fx-padding: 8px;">
+  <top>
+    <HBox spacing="8" alignment="CENTER">
+      <BorderPane.margin>
+        <Insets bottom="8"/>
+      </BorderPane.margin>
+      <VBox fx:id="row" HBox.hgrow="ALWAYS">
+        <Text text="%path.to.common"/>
+        <HBox>
+          <JFXTextField fx:id="tfSteamDir"
+                        disable="true"
+                        editable="false"
+                        HBox.hgrow="ALWAYS"
+                        promptText="%path.to.common.hint"/>
+          <JFXButton fx:id="btnEditSteamDir"
+                     contentDisplay="GRAPHIC_ONLY"
+                     mnemonicParsing="false"
+                     style="-fx-padding: 4px;">
+            <graphic>
+              <FontIcon iconLiteral="gmi-create:20:grey"/>
+            </graphic>
+          </JFXButton>
+        </HBox>
+      </VBox>
+    </HBox>
+  </top>
+  <left>
+    <VBox spacing="8">
+      <BorderPane.margin>
+        <Insets right="8"/>
+      </BorderPane.margin>
+      <fx:include source="repo_layout.fxml" prefWidth="196"/>
+      <VBox VBox.vgrow="ALWAYS">
+        <Text text="%path.to.destination"/>
+        <HBox VBox.vgrow="ALWAYS">
+          <JFXListView fx:id="repos" prefWidth="-Infinity" HBox.hgrow="ALWAYS">
+            <placeholder>
+              <fx:include source="async_placeholder.fxml"/>
+            </placeholder>
+          </JFXListView>
+          <VBox style="-fx-border-color: -fx-box-border;">
+            <JFXButton fx:id="btnAddRepo"
+                       contentDisplay="GRAPHIC_ONLY"
+                       mnemonicParsing="false"
+                       style="-fx-padding: 4px;"
+                       onAction="#onAddRepo">
+              <graphic>
+                <FontIcon iconLiteral="gmi-add:20:green"/>
+              </graphic>
+            </JFXButton>
+            <JFXButton fx:id="btnRemoveRepo"
+                       contentDisplay="GRAPHIC_ONLY"
+                       mnemonicParsing="false"
+                       style="-fx-padding: 4px;"
+                       disable="true"
+                       onAction="#onRemoveRepo">
+              <graphic>
+                <FontIcon iconLiteral="gmi-remove:20:red"/>
+              </graphic>
+            </JFXButton>
+          </VBox>
+        </HBox>
+      </VBox>
+    </VBox>
+  </left>
+  <center>
+      <JFXTreeTableView fx:id="games" HBox.hgrow="ALWAYS">
+        <columnResizePolicy>
+          <JFXTreeTableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+        <placeholder>
+          <fx:include source="async_placeholder.fxml"/>
+        </placeholder>
+      </JFXTreeTableView>
+  </center>
+</BorderPane>

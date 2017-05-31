@@ -12,11 +12,13 @@ import javafx.beans.property.SimpleStringProperty;
 
 public class Game extends RecursiveTreeObject<Game> {
   final SimpleStringProperty title;
+  final SimpleObjectProperty<Path> repo;
   final SimpleObjectProperty<Path> path;
   final SimpleObjectProperty<FileSize> size;
 
   Game(@NotNull String title, @Nullable Path path) {
     this.title = new SimpleStringProperty(title);
+    this.repo = new SimpleObjectProperty<>(path != null ? path.getParent() : null);
     this.path = new SimpleObjectProperty<>(path);
     this.size = new SimpleObjectProperty<>(null);
   }
@@ -45,14 +47,6 @@ public class Game extends RecursiveTreeObject<Game> {
     this.size.set(size);
   }
 
-  public static String humanReadableByteCount(long bytes, boolean si) {
-    int unit = si ? 1000 : 1024;
-    if (bytes < unit) return bytes + " B";
-    int exp = (int) (Math.log(bytes) / Math.log(unit));
-    String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp - 1) + (si ? "" : "i");
-    return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
-  }
-
   @Override
   public String toString() {
     return "title:" + title.get() + "; path:" + path.get() + "; size:" + size.get();
@@ -67,7 +61,7 @@ public class Game extends RecursiveTreeObject<Game> {
 
     @Override
     public String toString() {
-      return humanReadableByteCount(value, true);
+      return Utils.humanReadableByteCount(value, true);
     }
 
     @Override
