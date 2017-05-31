@@ -476,16 +476,21 @@ public class Main extends Application {
         }
 
         // TODO: add proper messages
-        if (repo.toFile().getUsableSpace() <= spaceRequired) {
+        long usableSpace = repo.toFile().getUsableSpace();
+        if (usableSpace <= spaceRequired) {
           Alert alert = new Alert(Alert.AlertType.WARNING);
-          alert.setTitle("Files too big!!!!");
+          alert.setTitle(Bundle.get("files.too.big.title"));
+          alert.setContentText(Bundle.get("files.too.big.message"));
           alert.setHeaderText(null);
-          alert.setContentText("Selected files are too big and won't fit within the disk space.");
           alert.getButtonTypes().setAll(ButtonType.OK);
           alert.initOwner(((Node) event.getSource()).getScene().getWindow());
-          alert.getDialogPane().setExpandableContent(new TextArea(validGames.stream()
-              .map(File::toString)
-              .collect(Collectors.joining("\n"))));
+          alert.getDialogPane().setExpandableContent(new TextArea(
+              Bundle.get("files.too.big.expanded",
+                  Utils.humanReadableByteCount(spaceRequired, true),
+                  Utils.humanReadableByteCount(usableSpace, true),
+                  validGames.stream()
+                      .map(File::toString)
+                      .collect(Collectors.joining("\n")))));
           alert.show();
           return;
         }
@@ -645,5 +650,9 @@ public class Main extends Application {
     };
 
     new Thread(task).start();
+  }
+
+  private void transfer() {
+
   }
 }

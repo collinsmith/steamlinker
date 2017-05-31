@@ -61,7 +61,7 @@
             <JFXButton fx:id="btnAddRepo"
                        contentDisplay="GRAPHIC_ONLY"
                        mnemonicParsing="false"
-                       style="-fx-padding: 4px;"
+                       style="-fx-padding: 0px;"
                        onAction="#onAddRepo">
               <graphic>
                 <FontIcon iconLiteral="gmi-add:20:green"/>
@@ -70,7 +70,7 @@
             <JFXButton fx:id="btnRemoveRepo"
                        contentDisplay="GRAPHIC_ONLY"
                        mnemonicParsing="false"
-                       style="-fx-padding: 4px;"
+                       style="-fx-padding: 0px;"
                        disable="true"
                        onAction="#onRemoveRepo">
               <graphic>
