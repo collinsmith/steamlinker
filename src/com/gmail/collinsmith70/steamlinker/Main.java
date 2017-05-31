@@ -396,9 +396,7 @@ public class Main extends Application {
       cell.setOnMouseClicked(new RepoContextMenu(cell.itemProperty(), cell));
       return cell;
     });
-    ChangeListener<ObservableList<Path>> reposChangeListener = (observable, oldValue, newValue) -> {
-      repos.setItems(newValue);
-    };
+    ChangeListener<ObservableList<Path>> reposChangeListener = (observable, oldValue, newValue) -> repos.setItems(newValue);
 
     reposChangeListener.changed(null, null, this.repos.get());
     this.repos.addListener(reposChangeListener);
@@ -467,6 +465,7 @@ public class Main extends Application {
       }
 
       Path repo = this.repo.get();
+      //noinspection unchecked
       List<File> games = (List<File>) content;
       if (games.stream().allMatch(game -> repo.equals(game.toPath().getParent()))) {
         return;
@@ -520,15 +519,14 @@ public class Main extends Application {
     Scene scene = ((Node) event.getSource()).getScene();
     DirectoryChooser directoryChooser = new DirectoryChooser();
     Optional.ofNullable(directoryChooser.showDialog(scene.getWindow()))
-        .ifPresent(file -> {
-          repos.get().add(file.toPath());
-        });
+        .ifPresent(file -> repos.get().add(file.toPath()));
     event.consume();
   }
 
   @FXML
   private void onRemoveRepo(@NotNull ActionEvent event) {
     Scene scene = ((Node) event.getSource()).getScene();
+    //noinspection unchecked
     ListView<Path> repos = (ListView<Path>) scene.lookup("#repos");
     MultipleSelectionModel model = repos.getSelectionModel();
     repos.getItems().remove(model.getSelectedIndex());
@@ -537,6 +535,7 @@ public class Main extends Application {
   }
 
   private void configureGamesTable(@NotNull Scene scene) {
+    //noinspection unchecked
     TreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
 
     TreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn<>();
@@ -553,6 +552,7 @@ public class Main extends Application {
     sizeColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().size.get()));
     sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
 
+    //noinspection unchecked
     games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
 
     games.setRowFactory(param -> {
@@ -602,6 +602,7 @@ public class Main extends Application {
   }
 
   private synchronized void updateGames(@NotNull Scene scene) {
+    //noinspection unchecked
     JFXTreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
     Node placeholder = games.getPlaceholder();
 
@@ -651,7 +652,7 @@ public class Main extends Application {
 
             long size = FileUtils.sizeOfDirectory(path.toFile());
             game.setSize(new Game.FileSize(size));
-            Platform.runLater(() -> games.refresh());
+            Platform.runLater(games::refresh);
           }
         }
 
@@ -682,7 +683,6 @@ public class Main extends Application {
 
         long bytesCopied, totalSize = copyTask.totalSize;
         long previousBytes = 0L;
-        System.out.println("totalSize=" + totalSize);
         while (true) {
           bytesCopied = copyTask.bytesCopied;
           double percent = (double) bytesCopied / totalSize;
@@ -703,8 +703,6 @@ public class Main extends Application {
             break;
           }
         }
-
-        LOG.info("done! " + bytesCopied + "/" + totalSize);
 
         return null;
       }
