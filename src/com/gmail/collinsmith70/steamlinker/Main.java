@@ -1,6 +1,5 @@
 package com.gmail.collinsmith70.steamlinker;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import com.jfoenix.controls.JFXListCell;
@@ -61,6 +60,8 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
@@ -294,6 +295,8 @@ public class Main extends Application {
     EventHandler<DragEvent> dragEventHandler = new RepoDragEventHandler(this.steamDir);
     repoItem.setOnDragOver(dragEventHandler);
     repoItem.setOnDragDropped(dragEventHandler);
+    repoItem.setOnDragEntered(dragEventHandler);
+    repoItem.setOnDragExited(dragEventHandler);
     repoItem.setOnMouseClicked(new RepoContextMenu(this.steamDir, repoItem));
   }
 
@@ -367,13 +370,18 @@ public class Main extends Application {
             setGraphic(repoItem);
             prefWidthProperty().bind(getListView().widthProperty().subtract(2));
             setMaxWidth(Control.USE_PREF_SIZE);
+            setStyle("-fx-padding: 4px;");
           } catch (IOException e) {
             LOG.error(e.getMessage(), e);
           }
         }
       };
 
-      cell.setOnDragOver(new RepoDragEventHandler(cell.itemProperty()));
+      EventHandler<DragEvent> dragEventHandler = new RepoDragEventHandler(cell.itemProperty());
+      cell.setOnDragOver(dragEventHandler);
+      cell.setOnDragDropped(dragEventHandler);
+      cell.setOnDragEntered(dragEventHandler);
+      cell.setOnDragExited(dragEventHandler);
       cell.setOnMouseClicked(new RepoContextMenu(cell.itemProperty(), cell));
       return cell;
     });
@@ -447,10 +455,44 @@ public class Main extends Application {
         return;
       }
 
+      Path repo = this.repo.get();
       List<File> games = (List<File>) content;
-      File game = games.get(0);
-      if (repo.get().equals(game.toPath().getParent())) {
+      if (games.stream().allMatch(game -> repo.equals(game.toPath().getParent()))) {
         return;
+      }
+
+      if (event.getEventType() == DragEvent.DRAG_ENTERED) {
+        ((Node) event.getTarget()).setStyle("-fx-padding: 4px; -fx-border-color: lightskyblue; -fx-border-insets: -1;");
+      } else if (event.getEventType() == DragEvent.DRAG_EXITED) {
+        ((Node) event.getTarget()).setStyle("-fx-padding: 4px;");
+      } else if (event.getEventType() == DragEvent.DRAG_DROPPED) {
+        List<File> validGames = games.stream()
+            .filter(game -> !repo.equals(game.toPath().getParent()))
+            .collect(Collectors.toList());
+
+        long spaceRequired = 0L;
+        for (File game : validGames) {
+          spaceRequired += FileUtils.sizeOfDirectory(game);
+        }
+
+        // TODO: add proper messages
+        if (repo.toFile().getUsableSpace() <= spaceRequired) {
+          Alert alert = new Alert(Alert.AlertType.WARNING);
+          alert.setTitle("Files too big!!!!");
+          alert.setHeaderText(null);
+          alert.setContentText("Selected files are too big and won't fit within the disk space.");
+          alert.getButtonTypes().setAll(ButtonType.OK);
+          alert.initOwner(((Node) event.getSource()).getScene().getWindow());
+          alert.getDialogPane().setExpandableContent(new TextArea(validGames.stream()
+              .map(File::toString)
+              .collect(Collectors.joining("\n"))));
+          alert.show();
+          return;
+        }
+
+        for (File game : games) {
+          System.out.println(game + "->" + repo.resolve(game.toPath().getFileName()));
+        }
       }
 
       event.acceptTransferModes(TransferMode.ANY);
@@ -501,8 +543,8 @@ public class Main extends Application {
     games.setRowFactory(param -> {
       TreeTableRow<Game> row = new JFXTreeTableRow<>();
       row.setOnDragDetected(event -> {
-        TreeItem<Game> selectedItem = games.getSelectionModel().getSelectedItem();
-        if (selectedItem == null) {
+        List<TreeItem<Game>> selectedItems = games.getSelectionModel().getSelectedItems();
+        if (selectedItems == null || selectedItems.isEmpty()) {
           return;
         }
 
@@ -511,7 +553,11 @@ public class Main extends Application {
         sp.setFill(Color.TRANSPARENT);
         db.setDragView(row.snapshot(sp, null));
         ClipboardContent content = new ClipboardContent();
-        content.putFiles(ImmutableList.of(selectedItem.getValue().getPath().toFile()));
+        List<File> selectedGames = selectedItems.stream()
+            .filter(selectedItem -> selectedItem.getValue().getPath() != null)
+            .map(selectedItem -> selectedItem.getValue().getPath().toFile())
+            .collect(Collectors.toList());
+        content.putFiles(selectedGames);
         db.setContent(content);
         event.consume();
       });
@@ -536,6 +582,8 @@ public class Main extends Application {
     Node placeholder = games.getPlaceholder();
     Label label = (Label) placeholder.lookup("#label");
     label.setText(Bundle.get("path.to.common.empty"));
+
+    games.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
   }
 
   private synchronized void updateGames(@NotNull Scene scene) {
