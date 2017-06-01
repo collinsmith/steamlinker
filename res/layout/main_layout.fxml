@@ -117,9 +117,9 @@
   </left>
   <center>
       <JFXTreeTableView fx:id="games" HBox.hgrow="ALWAYS">
-        <columnResizePolicy>
-          <JFXTreeTableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-        </columnResizePolicy>
+        <!--<columnResizePolicy>-->
+          <!--<JFXTreeTableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>-->
+        <!--</columnResizePolicy>-->
         <placeholder>
           <fx:include source="async_placeholder.fxml"/>
         </placeholder>

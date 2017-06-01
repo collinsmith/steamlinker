@@ -7,15 +7,17 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 
 public class Game extends RecursiveTreeObject<Game> {
-  final SimpleStringProperty title;
-  final SimpleObjectProperty<Path> repo;
-  final SimpleObjectProperty<Path> folder;
-  final SimpleObjectProperty<Path> path;
-  final SimpleObjectProperty<FileSize> size;
+  final StringProperty title;
+  final ObjectProperty<Path> repo;
+  final ObjectProperty<Path> folder;
+  final ObjectProperty<Path> path;
+  final ObjectProperty<FileSize> size;
 
   Game(@NotNull String title, @Nullable Path path) {
     this.title = new SimpleStringProperty(title);
@@ -25,28 +27,29 @@ public class Game extends RecursiveTreeObject<Game> {
     this.size = new SimpleObjectProperty<>(null);
   }
 
-  public String getTitle() {
-    return title.get();
+  @NotNull
+  StringProperty titleProperty() {
+    return title;
   }
 
-  public void setTitle(String title) {
-    this.title.set(title);
+  @NotNull
+  ObjectProperty<Path> repoProperty() {
+    return repo;
   }
 
-  public Path getPath() {
-    return path.get();
+  @NotNull
+  ObjectProperty<Path> folderProperty() {
+    return folder;
   }
 
-  public void setPath(Path path) {
-    this.path.set(path);
+  @NotNull
+  ObjectProperty<Path> pathProperty() {
+    return path;
   }
 
-  public FileSize getSize() {
-    return size.get();
-  }
-
-  public void setSize(FileSize size) {
-    this.size.set(size);
+  @NotNull
+  ObjectProperty<FileSize> sizeProperty() {
+    return size;
   }
 
   @Override

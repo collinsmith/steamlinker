@@ -7,6 +7,8 @@ import com.jfoenix.controls.JFXTreeTableColumn;
 import com.jfoenix.controls.JFXTreeTableRow;
 import com.jfoenix.controls.JFXTreeTableView;
 import com.jfoenix.controls.RecursiveTreeItem;
+import com.jfoenix.controls.cells.editors.TextFieldEditorBuilder;
+import com.jfoenix.controls.cells.editors.base.GenericEditableTreeTableCell;
 import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
 
 import org.apache.commons.io.FileUtils;
@@ -26,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
@@ -36,8 +39,8 @@ import javafx.beans.property.ListProperty;
 import javafx.beans.property.ListPropertyBase;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -66,10 +69,6 @@ import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
-import javafx.scene.control.TreeTableRow;
-import javafx.scene.control.TreeTableView;
-import javafx.scene.control.cell.TextFieldTreeTableCell;
-import javafx.scene.control.cell.TreeItemPropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -189,6 +188,8 @@ public class Main extends Application {
     URL location = Main.class.getResource("/layout/main_layout.fxml");
     Parent root = FXMLLoader.load(location, Bundle.BUNDLE);
     Scene scene = new Scene(root);
+
+    scene.getStylesheets().add(Main.class.getResource("/style/jfoenix-components.css") .toExternalForm());
 
     stage.setTitle(Bundle.get("name"));
     doIcons(stage.getIcons());
@@ -557,42 +558,54 @@ public class Main extends Application {
     event.consume();
   }
 
+  private <T> void setupCellValueFactory(JFXTreeTableColumn<Game, T> column, Function<Game, ObservableValue<T>> mapper) {
+    column.setCellValueFactory((TreeTableColumn.CellDataFeatures<Game, T> param) -> {
+      if (column.validateValue(param)) {
+        return mapper.apply(param.getValue().getValue());
+      } else {
+        return column.getComputedValue(param);
+      }
+    });
+  }
+
   private void configureGamesTable(@NotNull Scene scene) {
     //noinspection unchecked
-    TreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
+    JFXTreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
+    games.setEditable(true);
 
-    TreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn<>();
+    JFXTreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn<>();
     titleColumn.setText(Bundle.get("table.title"));
-    //titleColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().title.get()));
-    titleColumn.setCellValueFactory(new TreeItemPropertyValueFactory<>("title"));
-    titleColumn.setCellFactory(TextFieldTreeTableCell.forTreeTableColumn());
-    titleColumn.setEditable(true);
+    titleColumn.setCellFactory(param -> new GenericEditableTreeTableCell<>(new TextFieldEditorBuilder()));
     titleColumn.setOnEditCommit(event -> {
       Game game = event.getRowValue().getValue();
       String name = event.getNewValue();
-      game.setTitle(name);
+      game.title.setValue(name);
       PREFERENCES.put(Prefs.GAME + game.folder.get().toString(), name);
     });
 
-    games.setEditable(true);
-
-    TreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn<>();
+    JFXTreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn<>();
     pathColumn.setText(Bundle.get("table.path"));
-    pathColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().repo.get()));
     pathColumn.setStyle("-fx-alignment: CENTER-LEFT;");
     //pathColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
 
-    TreeTableColumn<Game, Game.FileSize> sizeColumn = new JFXTreeTableColumn<>();
+    JFXTreeTableColumn<Game, Game.FileSize> sizeColumn = new JFXTreeTableColumn<>();
     sizeColumn.setText(Bundle.get("table.size"));
-    sizeColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().size.get()));
     sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
-    sizeColumn.setPrefWidth(128);
+
+    setupCellValueFactory(titleColumn, Game::titleProperty);
+    setupCellValueFactory(pathColumn, Game::repoProperty);
+    setupCellValueFactory(sizeColumn, Game::sizeProperty);
+
+    //games.setColumnResizePolicy(TreeTableView.CONSTRAINED_RESIZE_POLICY);
+    titleColumn.prefWidthProperty().bind(games.widthProperty().multiply(0.375));
+    pathColumn.prefWidthProperty().bind(games.widthProperty().multiply(0.5));
+    sizeColumn.prefWidthProperty().bind(games.widthProperty().multiply(0.125).subtract(15));
 
     //noinspection unchecked
     games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
 
     games.setRowFactory(param -> {
-      TreeTableRow<Game> row = new JFXTreeTableRow<>();
+      JFXTreeTableRow<Game> row = new JFXTreeTableRow<>();
       row.setOnDragDetected(event -> {
         List<TreeItem<Game>> selectedItems = games.getSelectionModel().getSelectedItems();
         if (selectedItems == null || selectedItems.isEmpty()) {
@@ -606,8 +619,8 @@ public class Main extends Application {
         db.setDragView(new Image("/mipmap/ic_insert_link_black.png"), 36, 48);
         ClipboardContent content = new ClipboardContent();
         List<File> selectedGames = selectedItems.stream()
-            .filter(selectedItem -> selectedItem.getValue().getPath() != null)
-            .map(selectedItem -> selectedItem.getValue().getPath().toFile())
+            .filter(selectedItem -> selectedItem.getValue().path.get() != null)
+            .map(selectedItem -> selectedItem.getValue().path.get().toFile())
             .collect(Collectors.toList());
         content.putFiles(selectedGames);
         db.setContent(content);
@@ -667,8 +680,7 @@ public class Main extends Application {
               .collect(Collectors.toList());
 
           items = FXCollections.observableList(dirs);
-          TreeItem<Game> rootItem = new RecursiveTreeItem<>(items,
-              RecursiveTreeObject::getChildren);
+          TreeItem<Game> rootItem = new RecursiveTreeItem<>(items, RecursiveTreeObject::getChildren);
           Platform.runLater(() -> {
             games.setRoot(rootItem);
             games.setShowRoot(false);
@@ -684,13 +696,13 @@ public class Main extends Application {
 
         if (items != null) {
           for (Game game : items) {
-            Path path = game.getPath();
+            Path path = game.path.get();
             if (path == null) {
               continue;
             }
 
             long size = FileUtils.sizeOfDirectory(path.toFile());
-            game.setSize(new Game.FileSize(size));
+            game.size.set(new Game.FileSize(size));
             Platform.runLater(games::refresh);
           }
         }
