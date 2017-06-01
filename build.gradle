@@ -20,7 +20,6 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
 
     compile group: 'org.checkerframework', name: 'checker', version: '2.1.11'
-    compile group: 'com.jfoenix', name: 'jfoenix', version: '1.4.0'
     compile group: 'net.java.dev.jna', name: 'jna-platform', version: '4.1.0'
     compile 'org.kordamp.ikonli:ikonli-javafx:1.9.0'
     compile 'org.kordamp.ikonli:ikonli-material-pack:1.9.0'

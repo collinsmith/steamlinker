@@ -2,15 +2,6 @@ package com.gmail.collinsmith70.steamlinker;
 
 import com.google.common.collect.Sets;
 
-import com.jfoenix.controls.JFXListCell;
-import com.jfoenix.controls.JFXTreeTableColumn;
-import com.jfoenix.controls.JFXTreeTableRow;
-import com.jfoenix.controls.JFXTreeTableView;
-import com.jfoenix.controls.RecursiveTreeItem;
-import com.jfoenix.controls.cells.editors.TextFieldEditorBuilder;
-import com.jfoenix.controls.cells.editors.base.GenericEditableTreeTableCell;
-import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
@@ -69,6 +60,9 @@ import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableRow;
+import javafx.scene.control.TreeTableView;
+import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.image.Image;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -289,6 +283,14 @@ public class Main extends Application {
           Utils.humanReadableByteCount(totalSpace, true)));
       updateGames(scene);
     };
+    progressBar.progressProperty().addListener(((observable, oldValue, newValue) -> {
+      double progress = newValue == null ? 0 : newValue.doubleValue();
+      if (progress < 0.95) {
+        progressBar.setStyle("-fx-accent: #0094c5;");
+      } else {
+        progressBar.setStyle("-fx-accent: #d00000;");
+      }
+    }));
 
     if (steamDir != null) {
       pathChangeListener.changed(null, null, steamDir);
@@ -357,7 +359,7 @@ public class Main extends Application {
   private void configureRepos(@NotNull Scene scene) {
     ListView<Path> repos = (ListView<Path>) scene.lookup("#repos");
     repos.setCellFactory(param -> {
-      ListCell<Path> cell = new JFXListCell<Path>() {
+      ListCell<Path> cell = new ListCell<Path>() {
         @Override
         public void updateItem(Path path, boolean empty) {
           super.updateItem(path, empty);
@@ -374,6 +376,14 @@ public class Main extends Application {
 
             ProgressBar progressBar = (ProgressBar) repoItem.lookup("#progressBar");
             Label progressBarText = (Label) repoItem.lookup("#progressBarText");
+            progressBar.progressProperty().addListener(((observable, oldValue, newValue) -> {
+              double progress = newValue == null ? 0 : newValue.doubleValue();
+              if (progress < 0.95) {
+                progressBar.setStyle("-fx-accent: #0094c5;");
+              } else {
+                progressBar.setStyle("-fx-accent: #d00000;");
+              }
+            }));
 
             File repoFile = path.toFile();
             long usableSpace = repoFile.getUsableSpace();
@@ -558,24 +568,21 @@ public class Main extends Application {
     event.consume();
   }
 
-  private <T> void setupCellValueFactory(JFXTreeTableColumn<Game, T> column, Function<Game, ObservableValue<T>> mapper) {
+  private <T> void setupCellValueFactory(TreeTableColumn<Game, T> column, Function<Game, ObservableValue<T>> mapper) {
     column.setCellValueFactory((TreeTableColumn.CellDataFeatures<Game, T> param) -> {
-      if (column.validateValue(param)) {
-        return mapper.apply(param.getValue().getValue());
-      } else {
-        return column.getComputedValue(param);
-      }
+      return mapper.apply(param.getValue().getValue());
     });
   }
 
   private void configureGamesTable(@NotNull Scene scene) {
     //noinspection unchecked
-    JFXTreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
+    TreeTableView<Game> games = (TreeTableView<Game>) scene.lookup("#games");
+    games.setTableMenuButtonVisible(true);
     games.setEditable(true);
 
-    JFXTreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn<>();
+    TreeTableColumn<Game, String> titleColumn = new TreeTableColumn<>();
     titleColumn.setText(Bundle.get("table.title"));
-    titleColumn.setCellFactory(param -> new GenericEditableTreeTableCell<>(new TextFieldEditorBuilder()));
+    titleColumn.setCellFactory(TextFieldTreeTableCell.forTreeTableColumn());
     titleColumn.setOnEditCommit(event -> {
       Game game = event.getRowValue().getValue();
       String name = event.getNewValue();
@@ -583,12 +590,12 @@ public class Main extends Application {
       PREFERENCES.put(Prefs.GAME + game.folder.get().toString(), name);
     });
 
-    JFXTreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn<>();
+    TreeTableColumn<Game, Path> pathColumn = new TreeTableColumn<>();
     pathColumn.setText(Bundle.get("table.path"));
     pathColumn.setStyle("-fx-alignment: CENTER-LEFT;");
     //pathColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
 
-    JFXTreeTableColumn<Game, Game.FileSize> sizeColumn = new JFXTreeTableColumn<>();
+    TreeTableColumn<Game, Game.FileSize> sizeColumn = new TreeTableColumn<>();
     sizeColumn.setText(Bundle.get("table.size"));
     sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
 
@@ -605,7 +612,7 @@ public class Main extends Application {
     games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
 
     games.setRowFactory(param -> {
-      JFXTreeTableRow<Game> row = new JFXTreeTableRow<>();
+      TreeTableRow<Game> row = new TreeTableRow<>();
       row.setOnDragDetected(event -> {
         List<TreeItem<Game>> selectedItems = games.getSelectionModel().getSelectedItems();
         if (selectedItems == null || selectedItems.isEmpty()) {
@@ -653,7 +660,7 @@ public class Main extends Application {
 
   private synchronized void updateGames(@NotNull Scene scene) {
     //noinspection unchecked
-    JFXTreeTableView<Game> games = (JFXTreeTableView<Game>) scene.lookup("#games");
+    TreeTableView<Game> games = (TreeTableView<Game>) scene.lookup("#games");
     Node placeholder = games.getPlaceholder();
 
     Node spinner = placeholder.lookup("#spinner");
@@ -664,9 +671,9 @@ public class Main extends Application {
     Task task = new Task() {
       @Override
       protected Object call() throws Exception {
-        ObservableList<Game> items = null;
+        List<Game> gamesList = null;
         try {
-          List<Game> dirs = Files.list(steamDir.get())
+          gamesList = Files.list(steamDir.get())
               .map(game -> {
                 String fileName = game.getFileName().toString();
                 String name = PREFERENCES.get(Prefs.GAME + fileName, fileName);
@@ -679,8 +686,11 @@ public class Main extends Application {
               })
               .collect(Collectors.toList());
 
-          items = FXCollections.observableList(dirs);
-          TreeItem<Game> rootItem = new RecursiveTreeItem<>(items, RecursiveTreeObject::getChildren);
+          TreeItem<Game> rootItem = new TreeItem<>();
+          rootItem.getChildren()
+              .setAll(gamesList.stream()
+                  .map(TreeItem::new)
+                  .collect(Collectors.toList()));
           Platform.runLater(() -> {
             games.setRoot(rootItem);
             games.setShowRoot(false);
@@ -694,8 +704,8 @@ public class Main extends Application {
           });
         }
 
-        if (items != null) {
-          for (Game game : items) {
+        if (gamesList != null) {
+          for (Game game : gamesList) {
             Path path = game.path.get();
             if (path == null) {
               continue;

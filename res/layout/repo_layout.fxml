@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.jfoenix.controls.JFXProgressBar?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <HBox xmlns="http://javafx.com/javafx"
@@ -11,7 +11,7 @@
       fx:id="repoItem">
   <VBox HBox.hgrow="ALWAYS">
     <Label fx:id="label" text="Steam Folder" style="-fx-font-size: 10pt;"/>
-    <JFXProgressBar fx:id="progressBar" prefHeight="8" HBox.hgrow="ALWAYS"/>
+    <ProgressBar fx:id="progressBar" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
     <Label fx:id="progressBarText" text="0.0 B free of 0.0 B" opacity="0.5"/>
   </VBox>
 </HBox>

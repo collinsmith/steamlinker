@@ -1,7 +1,5 @@
 package com.gmail.collinsmith70.steamlinker;
 
-import com.jfoenix.controls.datamodels.treetable.RecursiveTreeObject;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,7 +10,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-public class Game extends RecursiveTreeObject<Game> {
+public class Game {
   final StringProperty title;
   final ObjectProperty<Path> repo;
   final ObjectProperty<Path> folder;
