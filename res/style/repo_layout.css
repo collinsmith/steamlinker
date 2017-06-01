@@ -1,5 +1,5 @@
 #repoItem:hover, #repoItem:pressed, #repoItem:focused {
   -fx-border-color: lightskyblue;
   -fx-border-insets: -1;
-  -fx-background-color: skyblue;
+  -fx-background-color: aliceblue;
 }

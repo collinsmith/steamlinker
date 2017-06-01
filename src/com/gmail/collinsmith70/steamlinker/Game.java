@@ -13,12 +13,14 @@ import javafx.beans.property.SimpleStringProperty;
 public class Game extends RecursiveTreeObject<Game> {
   final SimpleStringProperty title;
   final SimpleObjectProperty<Path> repo;
+  final SimpleObjectProperty<Path> folder;
   final SimpleObjectProperty<Path> path;
   final SimpleObjectProperty<FileSize> size;
 
   Game(@NotNull String title, @Nullable Path path) {
     this.title = new SimpleStringProperty(title);
     this.repo = new SimpleObjectProperty<>(path != null ? path.getParent() : null);
+    this.folder = new SimpleObjectProperty<>(path != null ? path.getFileName() : null);
     this.path = new SimpleObjectProperty<>(path);
     this.size = new SimpleObjectProperty<>(null);
   }

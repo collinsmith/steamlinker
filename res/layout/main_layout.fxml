@@ -13,12 +13,15 @@
 <?import javafx.scene.text.Text?>
 <?import com.jfoenix.controls.JFXProgressBar?>
 <?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.control.TitledPane?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.112"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.gmail.collinsmith70.steamlinker.Main"
             minWidth="640" minHeight="480"
             maxWidth="Infinity" maxHeight="Infinity"
-            prefWidth="800.0" prefHeight="600.0"
+            prefWidth="800" prefHeight="600"
             style="-fx-padding: 8px;">
   <top>
     <HBox spacing="8" alignment="CENTER">
@@ -38,8 +41,11 @@
                      mnemonicParsing="false"
                      style="-fx-padding: 4px;">
             <graphic>
-              <FontIcon iconLiteral="gmi-create:20:grey"/>
+              <FontIcon iconLiteral="gmi-create:20:dimgray"/>
             </graphic>
+            <tooltip>
+              <Tooltip text="%path.to.common.edit.hint"/>
+            </tooltip>
           </JFXButton>
           <JFXButton fx:id="btnRefreshSteamDir"
                      contentDisplay="GRAPHIC_ONLY"
@@ -47,8 +53,11 @@
                      style="-fx-padding: 4px;"
                      disable="true">
             <graphic>
-              <FontIcon iconLiteral="gmi-refresh:20:grey"/>
+              <FontIcon iconLiteral="gmi-refresh:20:dimgray"/>
             </graphic>
+            <tooltip>
+              <Tooltip text="%path.to.common.refresh.hint"/>
+            </tooltip>
           </JFXButton>
         </HBox>
       </VBox>
@@ -63,16 +72,11 @@
       <VBox VBox.vgrow="ALWAYS">
         <Text text="%path.to.destination"/>
         <HBox VBox.vgrow="ALWAYS">
-          <JFXListView fx:id="repos" prefWidth="-Infinity" HBox.hgrow="ALWAYS">
-            <placeholder>
-              <fx:include source="async_placeholder.fxml"/>
-            </placeholder>
-          </JFXListView>
           <VBox style="-fx-border-color: -fx-box-border;">
             <JFXButton fx:id="btnAddRepo"
                        contentDisplay="GRAPHIC_ONLY"
                        mnemonicParsing="false"
-                       style="-fx-padding: 0px;"
+                       style="-fx-padding: 2px;"
                        onAction="#onAddRepo">
               <graphic>
                 <FontIcon iconLiteral="gmi-add:20:green"/>
@@ -81,7 +85,7 @@
             <JFXButton fx:id="btnRemoveRepo"
                        contentDisplay="GRAPHIC_ONLY"
                        mnemonicParsing="false"
-                       style="-fx-padding: 0px;"
+                       style="-fx-padding: 2px;"
                        disable="true"
                        onAction="#onRemoveRepo">
               <graphic>
@@ -89,6 +93,11 @@
               </graphic>
             </JFXButton>
           </VBox>
+          <JFXListView fx:id="repos" prefWidth="-Infinity" HBox.hgrow="ALWAYS">
+            <placeholder>
+              <fx:include source="async_placeholder.fxml"/>
+            </placeholder>
+          </JFXListView>
         </HBox>
       </VBox>
       <VBox>
@@ -116,4 +125,12 @@
         </placeholder>
       </JFXTreeTableView>
   </center>
+  <bottom>
+    <TitledPane text="%transfers" animated="false">
+      <BorderPane.margin>
+        <Insets top="8"/>
+      </BorderPane.margin>
+      <fx:include source="transfers_layout.fxml" HBox.hgrow="ALWAYS" style="-fx-padding: 0px;"/>
+    </TitledPane>
+  </bottom>
 </BorderPane>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXTreeTableView?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<HBox xmlns="http://javafx.com/javafx/8.0.112"
+      xmlns:fx="http://javafx.com/fxml/1"
+      prefWidth="640" prefHeight="128">
+  <VBox style="-fx-border-color: -fx-box-border;">
+    <JFXButton contentDisplay="GRAPHIC_ONLY"
+               mnemonicParsing="false"
+               style="-fx-padding: 2px;">
+      <graphic>
+        <FontIcon iconLiteral="gmi-play-arrow:20:seagreen"/>
+      </graphic>
+      <tooltip>
+        <Tooltip text="%transfers.play"/>
+      </tooltip>
+    </JFXButton>
+    <JFXButton contentDisplay="GRAPHIC_ONLY"
+               mnemonicParsing="false"
+               style="-fx-padding: 2px;">
+      <graphic>
+        <FontIcon iconLiteral="gmi-stop:20:red"/>
+      </graphic>
+      <tooltip>
+        <Tooltip text="%transfers.stop"/>
+      </tooltip>
+    </JFXButton>
+    <JFXButton contentDisplay="GRAPHIC_ONLY"
+               mnemonicParsing="false"
+               style="-fx-padding: 2px;">
+      <graphic>
+        <FontIcon iconLiteral="gmi-close:20:red"/>
+      </graphic>
+      <tooltip>
+        <Tooltip text="%transfers.remove"/>
+      </tooltip>
+    </JFXButton>
+    <JFXButton contentDisplay="GRAPHIC_ONLY"
+               mnemonicParsing="false"
+               style="-fx-padding: 2px;">
+      <graphic>
+        <FontIcon iconLiteral="gmi-delete:20:dimgray"/>
+      </graphic>
+    <tooltip>
+      <Tooltip text="%transfers.clear"/>
+    </tooltip>
+    </JFXButton>
+  </VBox>
+  <JFXTreeTableView HBox.hgrow="ALWAYS"/>
+</HBox>

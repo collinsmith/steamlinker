@@ -63,10 +63,13 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
+import javafx.scene.control.cell.TextFieldTreeTableCell;
+import javafx.scene.control.cell.TreeItemPropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -113,6 +116,7 @@ public class Main extends Application {
   private interface Prefs {
     String STEAM_DIR = "config.dirs.steam";
     String REPOS = "config.repos";
+    String GAME = "game.";
   }
 
   public static void main(String[] args) {
@@ -389,9 +393,9 @@ public class Main extends Application {
       };
 
       EventHandler<DragEvent> dragEventHandler = new RepoDragEventHandler(cell.itemProperty());
-      cell.setOnDragOver(dragEventHandler);
       cell.setOnDragDropped(dragEventHandler);
       cell.setOnDragEntered(dragEventHandler);
+      cell.setOnDragOver(dragEventHandler);
       cell.setOnDragExited(dragEventHandler);
       cell.setOnMouseClicked(new RepoContextMenu(cell.itemProperty(), cell));
       return cell;
@@ -451,6 +455,8 @@ public class Main extends Application {
   }
 
   private static class RepoDragEventHandler implements EventHandler<DragEvent> {
+    private static Tooltip draggingTooltip;
+
     @NotNull final ObjectProperty<Path> repo;
 
     RepoDragEventHandler(@NotNull ObjectProperty<Path> repo) {
@@ -471,10 +477,30 @@ public class Main extends Application {
         return;
       }
 
+      event.acceptTransferModes(TransferMode.ANY);
+      event.consume();
+
       if (event.getEventType() == DragEvent.DRAG_ENTERED) {
-        ((Node) event.getTarget()).setStyle("-fx-padding: 4px; -fx-border-color: lightskyblue; -fx-border-insets: -1;");
+        //System.out.println(event.getEventType());
+        ((Node) event.getTarget()).setStyle("-fx-padding: 4px; -fx-border-color: lightskyblue; -fx-border-insets: -1; -fx-background-color: aliceblue;");
+        /*if (draggingTooltip == null) {
+          System.out.println("creating");
+          draggingTooltip = new Tooltip("test");
+          draggingTooltip.show(((Node) event.getTarget()), event.getScreenX(), event.getScreenY());
+        }*/
+      } else if (event.getEventType() == DragEvent.DRAG_OVER) {
+        //System.out.println(event.getEventType());
+        //draggingTooltip.setAnchorX(event.getScreenX());
+        //draggingTooltip.setAnchorY(event.getScreenY());
       } else if (event.getEventType() == DragEvent.DRAG_EXITED) {
+        //System.out.println(event.getEventType());
         ((Node) event.getTarget()).setStyle("-fx-padding: 4px;");
+        //event.getDragboard().setDragView(null);
+        /*if (draggingTooltip != null) {
+          System.out.println("hiding");
+          draggingTooltip.hide();
+          draggingTooltip = null;
+        }*/
       } else if (event.getEventType() == DragEvent.DRAG_DROPPED) {
         List<File> validGames = games.stream()
             .filter(game -> !repo.equals(game.toPath().getParent()))
@@ -508,9 +534,6 @@ public class Main extends Application {
         Node source = ((Node) event.getSource());
         transfer(source, source.getScene(), games, repo.toFile(), steamDir.get().toFile());
       }
-
-      event.acceptTransferModes(TransferMode.ANY);
-      event.consume();
     }
   }
 
@@ -540,17 +563,30 @@ public class Main extends Application {
 
     TreeTableColumn<Game, String> titleColumn = new JFXTreeTableColumn<>();
     titleColumn.setText(Bundle.get("table.title"));
-    titleColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().title.get()));
+    //titleColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().title.get()));
+    titleColumn.setCellValueFactory(new TreeItemPropertyValueFactory<>("title"));
+    titleColumn.setCellFactory(TextFieldTreeTableCell.forTreeTableColumn());
+    titleColumn.setEditable(true);
+    titleColumn.setOnEditCommit(event -> {
+      Game game = event.getRowValue().getValue();
+      String name = event.getNewValue();
+      game.setTitle(name);
+      PREFERENCES.put(Prefs.GAME + game.folder.get().toString(), name);
+    });
+
+    games.setEditable(true);
 
     TreeTableColumn<Game, Path> pathColumn = new JFXTreeTableColumn<>();
     pathColumn.setText(Bundle.get("table.path"));
     pathColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().repo.get()));
+    pathColumn.setStyle("-fx-alignment: CENTER-LEFT;");
     //pathColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
 
     TreeTableColumn<Game, Game.FileSize> sizeColumn = new JFXTreeTableColumn<>();
     sizeColumn.setText(Bundle.get("table.size"));
     sizeColumn.setCellValueFactory(param -> new ReadOnlyObjectWrapper<>(param.getValue().getValue().size.get()));
     sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+    sizeColumn.setPrefWidth(128);
 
     //noinspection unchecked
     games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
@@ -566,7 +602,8 @@ public class Main extends Application {
         Dragboard db = games.startDragAndDrop(TransferMode.ANY);
         SnapshotParameters sp = new SnapshotParameters();
         sp.setFill(Color.TRANSPARENT);
-        db.setDragView(row.snapshot(sp, null));
+        //db.setDragView(row.snapshot(sp, null));
+        db.setDragView(new Image("/mipmap/ic_insert_link_black.png"), 36, 48);
         ClipboardContent content = new ClipboardContent();
         List<File> selectedGames = selectedItems.stream()
             .filter(selectedItem -> selectedItem.getValue().getPath() != null)
@@ -618,11 +655,13 @@ public class Main extends Application {
         try {
           List<Game> dirs = Files.list(steamDir.get())
               .map(game -> {
+                String fileName = game.getFileName().toString();
+                String name = PREFERENCES.get(Prefs.GAME + fileName, fileName);
                 try {
-                  return new Game(game.getFileName().toString(), game.toRealPath());
+                  return new Game(name, game.toRealPath());
                 } catch (IOException e) {
-                  LOG.warn("Broken link detected: " + game, e);
-                  return new Game(game.getFileName().toString(), null);
+                  LOG.warn("Broken link detected: " + game);
+                  return new Game(name, null);
                 }
               })
               .collect(Collectors.toList());
