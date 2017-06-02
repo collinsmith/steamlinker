@@ -112,7 +112,7 @@ public class Main extends Application {
   private interface Prefs {
     String STEAM_DIR = "config.dirs.steam";
     String REPOS = "config.repos";
-    String GAME = "game.";
+    String GAME_TITLE = "game.title.";
     String GAME_SIZE = "game.size.";
   }
 
@@ -235,6 +235,7 @@ public class Main extends Application {
   private Path configureSteamDir(@NotNull Scene scene) {
     TextInputControl tfSteamDir = (TextInputControl) scene.lookup("#tfSteamDir");
     tfSteamDir.textProperty().bindBidirectional(this.steamDir, PATH_STRING_CONVERTER);
+    tfSteamDir.setOpacity(1.0);
     PREFERENCES.addPreferenceChangeListener(event -> {
       if (event.getKey().equals(Prefs.STEAM_DIR)) {
         Platform.runLater(() -> tfSteamDir.setText(event.getNewValue()));
@@ -594,7 +595,7 @@ public class Main extends Application {
       Game game = event.getRowValue().getValue();
       String name = event.getNewValue();
       game.title.setValue(name);
-      PREFERENCES.put(Prefs.GAME + game.folder.get().toString(), name);
+      PREFERENCES.put(Prefs.GAME_TITLE + game.folder.get().toString(), name);
     });
 
     TreeTableColumn<Game, Path> pathColumn = new TreeTableColumn<>();
@@ -723,7 +724,7 @@ public class Main extends Application {
           gamesList = Files.list(steamDir.get())
               .map(path -> {
                 String fileName = path.getFileName().toString();
-                String name = PREFERENCES.get(Prefs.GAME + fileName, fileName);
+                String name = PREFERENCES.get(Prefs.GAME_TITLE + fileName, fileName);
                 long size = PREFERENCES.getLong(Prefs.GAME_SIZE + fileName, Long.MIN_VALUE);
                 try {
                   return new Game(name, path.toRealPath(), size);

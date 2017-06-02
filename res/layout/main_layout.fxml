@@ -29,7 +29,7 @@
       </BorderPane.margin>
       <VBox fx:id="row" HBox.hgrow="ALWAYS">
         <Text text="%path.to.common"/>
-        <HBox>
+        <HBox alignment="CENTER">
           <TextField fx:id="tfSteamDir"
                      disable="true"
                      editable="false"
@@ -38,21 +38,21 @@
           <Button fx:id="btnEditSteamDir"
                   contentDisplay="GRAPHIC_ONLY"
                   mnemonicParsing="false"
-                  style="-fx-padding: 4px;">
+                  style="-fx-padding: 2px;">
             <graphic>
-              <FontIcon iconLiteral="gmi-create:20:dimgray"/>
+              <FontIcon iconLiteral="gmi-create:22:dimgray"/>
             </graphic>
             <tooltip>
               <Tooltip text="%path.to.common.edit.hint"/>
             </tooltip>
           </Button>
           <Button fx:id="btnRefreshSteamDir"
-                     contentDisplay="GRAPHIC_ONLY"
-                     mnemonicParsing="false"
-                     style="-fx-padding: 4px;"
-                     disable="true">
+                  contentDisplay="GRAPHIC_ONLY"
+                  mnemonicParsing="false"
+                  style="-fx-padding: 2px;"
+                  disable="true">
             <graphic>
-              <FontIcon iconLiteral="gmi-refresh:20:dimgray"/>
+              <FontIcon iconLiteral="gmi-refresh:22:dimgray"/>
             </graphic>
             <tooltip>
               <Tooltip text="%path.to.common.refresh.hint"/>
