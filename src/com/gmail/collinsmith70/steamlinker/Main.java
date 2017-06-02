@@ -2,6 +2,8 @@ package com.gmail.collinsmith70.steamlinker;
 
 import com.google.common.collect.Sets;
 
+import com.gmail.collinsmith70.steamlinker.Game.Transfer;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
@@ -19,6 +21,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -27,10 +32,12 @@ import java.util.stream.Collectors;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ListPropertyBase;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -122,6 +129,7 @@ public class Main extends Application {
     String REPOS = "config.repos";
     String GAME_TITLE = "game.title.";
     String GAME_SIZE = "game.size.";
+    String MAX_TRANSFERS = "max.concurrent.transfers";
   }
 
   public static void main(String[] args) {
@@ -188,6 +196,20 @@ public class Main extends Application {
           : FXCollections.observableArrayList();
     }
   };
+
+  @NotNull
+  private final ThreadPoolExecutor executors;
+  {
+    int nThreads = maxTransfers.get();
+    executors = new ThreadPoolExecutor(nThreads, nThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+    maxTransfers.addListener((observable, oldValue, newValue) -> executors.setMaximumPoolSize(newValue.intValue()));
+  }
+
+  private static final IntegerProperty maxTransfers = new SimpleIntegerProperty(1);
+  static {
+    Main.maxTransfers.setValue(PREFERENCES.getInt(Prefs.MAX_TRANSFERS, 1));
+    Main.maxTransfers.addListener((observable, oldValue, newValue) -> PREFERENCES.putInt(Prefs.MAX_TRANSFERS, newValue != null ? newValue.intValue() : 1));
+  }
 
   @Override
   public void start(Stage stage) throws Exception {
@@ -515,7 +537,15 @@ public class Main extends Application {
             .filter(game -> !repo.equals(game.repo.get()))
             .collect(Collectors.toList());
 
-        // TODO: This operation blocks while calculating the size (although it's negligible on my machine). At least add a spinner
+        // FIXME: This operation blocks while calculating the size (although it's negligible on my machine). At least add a spinner. Noticeable when drag n dropping
+        /**
+         * To fix this, the calculation needs to be performed on another thread which will return the
+         * size result. This can be done by the transfer object itself, i.e., add the transfer objects
+         * to the list (maybe as a cluster, but that's for a later version), and then each item will
+         * initialize (i.e., check the size). That being said though, this will only work if all the
+         * batched transfers are added, unless each checked individually and transferred until there
+         * is a problem.
+         */
         long spaceRequired = validGames.stream()
             .mapToLong(game -> FileUtils.sizeOfDirectory(game.path.get().toFile()))
             .sum();
@@ -798,7 +828,7 @@ public class Main extends Application {
 
     TableColumn<Transfer, String> titleColumn = new TableColumn<>();
     titleColumn.setText(Bundle.get("table.title"));
-    titleColumn.setCellValueFactory(param -> param.getValue().title);
+    titleColumn.setCellValueFactory(param -> param.getValue().game.title);
 
     TableColumn<Transfer, Double> progressColumn = new TableColumn<>();
     progressColumn.setText(Bundle.get("table.progress"));
@@ -892,19 +922,20 @@ public class Main extends Application {
   }
 
   private void enqueueTransfer(@NotNull Scene scene, @NotNull List<Game> games, @NotNull Path repo) {
-    if (DEBUG_GAMES_QUEUE) {
-      for (Game game : games) {
-        LOG.debug("Enqueueing " + game.title.get());
-      }
-    }
-
     Node transfers = scene.lookup("#transfers");
     TableView<Transfer> transfersList = (TableView<Transfer>) transfers.lookup("#transfersList");
+    ObservableList<Game.Transfer> queue = transfersList.getItems();
+    // TODO: This could probably be cleaned up a bit, maybe by adding equals/hashcode to Transfer
+    games.removeIf(game -> queue.stream().anyMatch(q -> q.dst.get().equals(repo) && q.src.get().equals(game.path.get())));
+    if (DEBUG_GAMES_QUEUE) {
+      games.forEach(game -> LOG.debug("Enqueueing " + game.title.get()));
+    }
 
     List<Transfer> items = games.stream()
-        .map(g -> new Transfer(g, repo))
+        .map(g -> g.transferTo(repo))
         .collect(Collectors.toList());
-    transfersList.getItems().addAll(items);
+
+    queue.addAll(items);
     ToggleButton btnPerformTransfers = (ToggleButton) scene.lookup("#btnPerformTransfers");
     if (!btnPerformTransfers.isSelected()) {
       return;
@@ -918,11 +949,7 @@ public class Main extends Application {
   private void doTransfer(@NotNull Transfer transfer) {
     File src = transfer.src.get().toFile();
     File dst = transfer.dst.get().toFile();
+    transfer.task.addListener((observable, oldValue, newValue) -> executors.execute(newValue));
     transfer.task.set(new CopyTask(LOG, src, dst));
-
-    // TODO: schedule on task property changed (i.e., executors framework)
-    Thread t = new Thread(transfer.task.get());
-    t.setName("steamlinker.copy." + transfer.title.get());
-    t.start();
   }
 }

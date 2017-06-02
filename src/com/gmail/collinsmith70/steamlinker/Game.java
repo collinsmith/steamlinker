@@ -10,12 +10,16 @@ import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.concurrent.Task;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.input.DataFormat;
 
 public class Game implements Serializable {
@@ -108,5 +112,27 @@ public class Game implements Serializable {
         this.folder.set(newValue.getFileName());
       }
     });
+  }
+
+  @NotNull
+  Transfer transferTo(@NotNull Path dst) {
+    return new Transfer(dst);
+  }
+
+  public class Transfer {
+    final Game game;
+    final ObjectProperty<Path> src;
+    final ObjectProperty<Path> dst;
+    final DoubleProperty progress;
+    final ObjectProperty<Task> task;
+
+    private Transfer(@NotNull Path dst) {
+      this.game = Game.this;
+      this.src = game.path;
+      this.dst = new SimpleObjectProperty<>(dst);
+      this.progress = new SimpleDoubleProperty(ProgressBar.INDETERMINATE_PROGRESS);
+      this.task = new SimpleObjectProperty<>();
+      this.task.addListener((observable, oldValue, newValue) -> this.progress.bind(newValue.progressProperty()));
+    }
   }
 }
