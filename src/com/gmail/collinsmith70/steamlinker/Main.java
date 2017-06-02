@@ -59,11 +59,13 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.DragEvent;
@@ -182,8 +184,6 @@ public class Main extends Application {
     URL location = Main.class.getResource("/layout/main_layout.fxml");
     Parent root = FXMLLoader.load(location, Bundle.BUNDLE);
     Scene scene = new Scene(root);
-
-    scene.getStylesheets().add(Main.class.getResource("/style/jfoenix-components.css") .toExternalForm());
 
     stage.setTitle(Bundle.get("name"));
     doIcons(stage.getIcons());
@@ -568,10 +568,9 @@ public class Main extends Application {
     event.consume();
   }
 
-  private <T> void setupCellValueFactory(TreeTableColumn<Game, T> column, Function<Game, ObservableValue<T>> mapper) {
-    column.setCellValueFactory((TreeTableColumn.CellDataFeatures<Game, T> param) -> {
-      return mapper.apply(param.getValue().getValue());
-    });
+  private static <T> void setupCellValueFactory(TreeTableColumn<Game, T> column,
+                                                Function<Game, ObservableValue<T>> mapper) {
+    column.setCellValueFactory(param -> mapper.apply(param.getValue().getValue()));
   }
 
   private void configureGamesTable(@NotNull Scene scene) {
@@ -594,6 +593,26 @@ public class Main extends Application {
     pathColumn.setText(Bundle.get("table.path"));
     pathColumn.setStyle("-fx-alignment: CENTER-LEFT;");
     //pathColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
+    pathColumn.setCellFactory(value -> {
+      TreeTableCell<Game, Path> cell = new TreeTableCell<Game, Path>() {
+        @Override
+        protected void updateItem(Path item, boolean empty) {
+          super.updateItem(item, empty);
+          if (empty || item == null) {
+            return;
+          }
+
+          if (item.equals(steamDir.get())) {
+            setGraphic(new ImageView("/mipmap/icon_16x16.png"));
+            setText(Bundle.get("path.to.common"));
+          } else {
+            setGraphic(null);
+            setText(PATH_STRING_CONVERTER.toString(item));
+          }
+        }
+      };
+      return cell;
+    });
 
     TreeTableColumn<Game, Game.FileSize> sizeColumn = new TreeTableColumn<>();
     sizeColumn.setText(Bundle.get("table.size"));

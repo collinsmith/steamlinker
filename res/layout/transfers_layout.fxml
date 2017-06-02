@@ -3,6 +3,7 @@
 
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.control.TreeTableView?>
 <?import javafx.scene.layout.HBox?>
@@ -11,16 +12,17 @@
       xmlns:fx="http://javafx.com/fxml/1"
       prefWidth="640" prefHeight="128">
   <VBox style="-fx-border-color: -fx-box-border;">
-    <Button contentDisplay="GRAPHIC_ONLY"
-            mnemonicParsing="false"
-            style="-fx-padding: 2px;">
+    <ToggleButton contentDisplay="GRAPHIC_ONLY"
+                  mnemonicParsing="false"
+                  style="-fx-padding: 2px;"
+                  selected="true">
       <graphic>
         <FontIcon iconLiteral="gmi-play-arrow:20:seagreen"/>
       </graphic>
       <tooltip>
         <Tooltip text="%transfers.play"/>
       </tooltip>
-    </Button>
+    </ToggleButton>
     <Button contentDisplay="GRAPHIC_ONLY"
                mnemonicParsing="false"
                style="-fx-padding: 2px;">
