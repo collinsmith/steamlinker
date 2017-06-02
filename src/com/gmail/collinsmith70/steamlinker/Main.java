@@ -86,6 +86,7 @@ public class Main extends Application {
   private static final boolean DEBUG_PREFERENCES = true;
   private static final boolean DEBUG_PROPERTIES = true;
   private static final boolean DEBUG_REPO_AUTOCONFIG = true;
+  private static final boolean DEBUG_GAMES_REFRESH = true;
 
   private static final Logger LOG = Logger.getLogger(Main.class);
   static {
@@ -112,6 +113,7 @@ public class Main extends Application {
     String STEAM_DIR = "config.dirs.steam";
     String REPOS = "config.repos";
     String GAME = "game.";
+    String GAME_SIZE = "game.size.";
   }
 
   public static void main(String[] args) {
@@ -184,6 +186,7 @@ public class Main extends Application {
     URL location = Main.class.getResource("/layout/main_layout.fxml");
     Parent root = FXMLLoader.load(location, Bundle.BUNDLE);
     Scene scene = new Scene(root);
+    doStyleSheets(scene);
 
     stage.setTitle(Bundle.get("name"));
     doIcons(stage.getIcons());
@@ -199,6 +202,11 @@ public class Main extends Application {
     configureGamesTable(scene);
 
     stage.show();
+  }
+
+  private void doStyleSheets(@NotNull Scene scene) {
+    ObservableList<String> styleSheets = scene.getStylesheets();
+    styleSheets.add("/style/listview.css");
   }
 
   @NotNull
@@ -593,30 +601,39 @@ public class Main extends Application {
     pathColumn.setText(Bundle.get("table.path"));
     pathColumn.setStyle("-fx-alignment: CENTER-LEFT;");
     //pathColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
-    pathColumn.setCellFactory(value -> {
-      TreeTableCell<Game, Path> cell = new TreeTableCell<Game, Path>() {
-        @Override
-        protected void updateItem(Path item, boolean empty) {
-          super.updateItem(item, empty);
-          if (empty || item == null) {
-            return;
-          }
-
-          if (item.equals(steamDir.get())) {
-            setGraphic(new ImageView("/mipmap/icon_16x16.png"));
-            setText(Bundle.get("path.to.common"));
-          } else {
-            setGraphic(null);
-            setText(PATH_STRING_CONVERTER.toString(item));
-          }
+    pathColumn.setCellFactory(value -> new TreeTableCell<Game, Path>() {
+      @Override
+      protected void updateItem(Path item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty || item == null) {
+          setGraphic(null);
+          setText(null);
+          return;
+        } else if (item.equals(steamDir.get())) {
+          setGraphic(new ImageView("/mipmap/icon_16x16.png"));
+          setText(Bundle.get("path.to.common"));
+        } else {
+          setGraphic(null);
+          setText(PATH_STRING_CONVERTER.toString(item));
         }
-      };
-      return cell;
+      }
     });
 
-    TreeTableColumn<Game, Game.FileSize> sizeColumn = new TreeTableColumn<>();
+    TreeTableColumn<Game, Number> sizeColumn = new TreeTableColumn<>();
     sizeColumn.setText(Bundle.get("table.size"));
     sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
+    sizeColumn.setCellFactory(callback -> new TreeTableCell<Game, Number>() {
+      @Override
+      protected void updateItem(Number item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty || item == null) {
+          setText(null);
+        } else {
+          long value = item.longValue();
+          setText(value >= 0L ? Utils.humanReadableByteCount(value, true) : null);
+        }
+      }
+    });
 
     setupCellValueFactory(titleColumn, Game::titleProperty);
     setupCellValueFactory(pathColumn, Game::repoProperty);
@@ -631,7 +648,18 @@ public class Main extends Application {
     games.getColumns().addAll(titleColumn, pathColumn, sizeColumn);
 
     games.setRowFactory(param -> {
-      TreeTableRow<Game> row = new TreeTableRow<>();
+      TreeTableRow<Game> row = new TreeTableRow<Game>() {
+        /*@Override
+        protected void updateItem(Game item, boolean empty) {
+          super.updateItem(item, empty);
+          if (empty || item == null || item.path.get() != null) {
+            setOpacity(1);
+            return;
+          }
+
+          setOpacity(0.5);
+        }*/
+      };
       row.setOnDragDetected(event -> {
         List<TreeItem<Game>> selectedItems = games.getSelectionModel().getSelectedItems();
         if (selectedItems == null || selectedItems.isEmpty()) {
@@ -693,13 +721,14 @@ public class Main extends Application {
         List<Game> gamesList = null;
         try {
           gamesList = Files.list(steamDir.get())
-              .map(game -> {
-                String fileName = game.getFileName().toString();
+              .map(path -> {
+                String fileName = path.getFileName().toString();
                 String name = PREFERENCES.get(Prefs.GAME + fileName, fileName);
+                long size = PREFERENCES.getLong(Prefs.GAME_SIZE + fileName, Long.MIN_VALUE);
                 try {
-                  return new Game(name, game.toRealPath());
+                  return new Game(name, path.toRealPath(), size);
                 } catch (IOException e) {
-                  LOG.warn("Broken link detected: " + game);
+                  LOG.warn("Broken link detected: " + path);
                   return new Game(name, null);
                 }
               })
@@ -724,6 +753,10 @@ public class Main extends Application {
         }
 
         if (gamesList != null) {
+          if (DEBUG_GAMES_REFRESH) {
+            LOG.debug("Refreshing games list...");
+          }
+
           for (Game game : gamesList) {
             Path path = game.path.get();
             if (path == null) {
@@ -731,8 +764,15 @@ public class Main extends Application {
             }
 
             long size = FileUtils.sizeOfDirectory(path.toFile());
-            game.size.set(new Game.FileSize(size));
-            Platform.runLater(games::refresh);
+            if (size != game.size.get()) {
+              game.size.set(size);
+              PREFERENCES.putLong(Prefs.GAME_SIZE + path.getFileName(), size);
+              Platform.runLater(games::refresh);
+            }
+          }
+
+          if (DEBUG_GAMES_REFRESH) {
+            LOG.debug("Games list refreshed.");
           }
         }
 

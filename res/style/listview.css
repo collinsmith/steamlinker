@@ -1,0 +1,11 @@
+.list-cell:filled:selected:focused, .list-cell:filled:selected {
+  -fx-border-color: lightskyblue;
+  -fx-border-insets: -1;
+  -fx-background-color: skyblue;
+}
+
+.list-cell:filled:hover {
+  -fx-border-color: lightskyblue;
+  -fx-border-insets: -1;
+  -fx-background-color: aliceblue;
+}
