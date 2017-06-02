@@ -539,9 +539,7 @@ public class Main extends Application {
           alert.show();
         } else {
           Scene scene = ((Node) event.getSource()).getScene();
-          transfer(scene, validGames, repo);
-          //Node source = ((Node) event.getSource());
-          //transfer(source, source.getScene(), games, repo.toFile(), steamDir.get().toFile());
+          enqueueTransfer(scene, validGames, repo);
         }
       } else if (eventType == DragEvent.DRAG_ENTERED) {
         ((Node) event.getTarget()).setStyle(
@@ -893,7 +891,7 @@ public class Main extends Application {
     btnClearTransfers.setOnAction(event -> transfersTable.getItems().clear());
   }
 
-  private void transfer(@NotNull Scene scene, @NotNull List<Game> games, @NotNull Path repo) {
+  private void enqueueTransfer(@NotNull Scene scene, @NotNull List<Game> games, @NotNull Path repo) {
     if (DEBUG_GAMES_QUEUE) {
       for (Game game : games) {
         LOG.debug("Enqueueing " + game.title.get());
