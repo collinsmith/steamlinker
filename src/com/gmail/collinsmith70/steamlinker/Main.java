@@ -787,6 +787,7 @@ public class Main extends Application {
   private static void transfer(@NotNull Node node, @NotNull Scene scene, @NotNull List<File> games, @NotNull File repo, @NotNull File steamDir) {
     ProgressBar transferProgress = (ProgressBar) scene.lookup("#transferProgress");
     Label transferPercent = (Label) scene.lookup("#transferPercent");
+    transferPercent.textProperty().bind(transferProgress.progressProperty().multiply(100.0).asString("%.0f%%"));
     Label transferETA = (Label) scene.lookup("#transferETA");
     Label transferBPS = (Label) scene.lookup("#transferBPS");
 
@@ -812,7 +813,6 @@ public class Main extends Application {
           double eta = (double) remainingBytes / bytesSinceLast;
           Platform.runLater(() -> {
             transferProgress.setProgress(percent);
-            transferPercent.setText(String.format("%.0f%%", percent * 100.0));
             transferBPS.setText(Utils.humanReadableByteCount(bytesSinceLast, true) + "ps");
             transferETA.setText(String.format("%.0f:%02.0f:%02.0f", eta / 3600, (eta % 3600) / 60, eta % 60));
           });
