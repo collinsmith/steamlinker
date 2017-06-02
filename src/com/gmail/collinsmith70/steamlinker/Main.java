@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ListPropertyBase;
 import javafx.beans.property.ObjectProperty;
@@ -37,6 +38,7 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.event.EventType;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -48,6 +50,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
+import javafx.scene.control.IndexedCell;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -55,8 +58,12 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableCell;
@@ -67,13 +74,13 @@ import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.DataFormat;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
@@ -87,6 +94,7 @@ public class Main extends Application {
   private static final boolean DEBUG_PROPERTIES = true;
   private static final boolean DEBUG_REPO_AUTOCONFIG = true;
   private static final boolean DEBUG_GAMES_REFRESH = true;
+  private static final boolean DEBUG_GAMES_QUEUE = true;
 
   private static final Logger LOG = Logger.getLogger(Main.class);
   static {
@@ -191,6 +199,7 @@ public class Main extends Application {
     stage.setTitle(Bundle.get("name"));
     doIcons(stage.getIcons());
     stage.setScene(scene);
+    stage.show();
 
     bindProperties();
 
@@ -200,8 +209,7 @@ public class Main extends Application {
     configureSteamRepo(scene);
     configureRepos(scene);
     configureGamesTable(scene);
-
-    stage.show();
+    configureTransfers(scene);
   }
 
   private void doStyleSheets(@NotNull Scene scene) {
@@ -474,8 +482,8 @@ public class Main extends Application {
     }
   }
 
-  private static class RepoDragEventHandler implements EventHandler<DragEvent> {
-    private static Tooltip draggingTooltip;
+  private class RepoDragEventHandler implements EventHandler<DragEvent> {
+    private Tooltip draggingTooltip;
 
     @NotNull final ObjectProperty<Path> repo;
 
@@ -485,51 +493,32 @@ public class Main extends Application {
 
     @Override
     public void handle(@NotNull DragEvent event) {
-      Object content = event.getDragboard().getContent(DataFormat.FILES);
-      if (content == null) {
+      final Dragboard dragboard = event.getDragboard();
+      if (!dragboard.hasContent(Game.DATA_FORMAT)) {
+        event.consume();
         return;
       }
 
       Path repo = this.repo.get();
       //noinspection unchecked
-      List<File> games = (List<File>) content;
-      if (games.stream().allMatch(game -> repo.equals(game.toPath().getParent()))) {
+      List<Game> games = (List<Game>) dragboard.getContent(Game.DATA_FORMAT);
+      if (games.stream().allMatch(game -> repo.equals(game.repo.get()))) {
+        event.consume();
         return;
       }
 
-      event.acceptTransferModes(TransferMode.ANY);
-      event.consume();
-
-      if (event.getEventType() == DragEvent.DRAG_ENTERED) {
-        //System.out.println(event.getEventType());
-        ((Node) event.getTarget()).setStyle("-fx-padding: 4px; -fx-border-color: lightskyblue; -fx-border-insets: -1; -fx-background-color: aliceblue;");
-        /*if (draggingTooltip == null) {
-          System.out.println("creating");
-          draggingTooltip = new Tooltip("test");
-          draggingTooltip.show(((Node) event.getTarget()), event.getScreenX(), event.getScreenY());
-        }*/
-      } else if (event.getEventType() == DragEvent.DRAG_OVER) {
-        //System.out.println(event.getEventType());
-        //draggingTooltip.setAnchorX(event.getScreenX());
-        //draggingTooltip.setAnchorY(event.getScreenY());
-      } else if (event.getEventType() == DragEvent.DRAG_EXITED) {
-        //System.out.println(event.getEventType());
-        ((Node) event.getTarget()).setStyle("-fx-padding: 4px;");
-        //event.getDragboard().setDragView(null);
-        /*if (draggingTooltip != null) {
-          System.out.println("hiding");
-          draggingTooltip.hide();
-          draggingTooltip = null;
-        }*/
-      } else if (event.getEventType() == DragEvent.DRAG_DROPPED) {
-        List<File> validGames = games.stream()
-            .filter(game -> !repo.equals(game.toPath().getParent()))
+      final EventType<DragEvent> eventType = event.getEventType();
+      if (eventType == DragEvent.DRAG_OVER) {
+        event.acceptTransferModes(TransferMode.ANY);
+      } else if (eventType == DragEvent.DRAG_DROPPED) {
+        List<Game> validGames = games.stream()
+            .filter(game -> !repo.equals(game.repo.get()))
             .collect(Collectors.toList());
 
-        long spaceRequired = 0L;
-        for (File game : validGames) {
-          spaceRequired += FileUtils.sizeOfDirectory(game);
-        }
+        // TODO: This operation blocks while calculating the size (although it's negligible on my machine). At least add a spinner
+        long spaceRequired = validGames.stream()
+            .mapToLong(game -> FileUtils.sizeOfDirectory(game.path.get().toFile()))
+            .sum();
 
         // TODO: add proper messages
         long usableSpace = repo.toFile().getUsableSpace();
@@ -545,15 +534,27 @@ public class Main extends Application {
                   Utils.humanReadableByteCount(spaceRequired, true),
                   Utils.humanReadableByteCount(usableSpace, true),
                   validGames.stream()
-                      .map(File::toString)
+                      .map(Game::toString)
                       .collect(Collectors.joining("\n")))));
           alert.show();
-          return;
+        } else {
+          Scene scene = ((Node) event.getSource()).getScene();
+          transfer(scene, validGames, repo);
+          //Node source = ((Node) event.getSource());
+          //transfer(source, source.getScene(), games, repo.toFile(), steamDir.get().toFile());
         }
-
-        Node source = ((Node) event.getSource());
-        transfer(source, source.getScene(), games, repo.toFile(), steamDir.get().toFile());
+      } else if (eventType == DragEvent.DRAG_ENTERED) {
+        ((Node) event.getTarget()).setStyle(
+            "-fx-padding: 4px; " +
+            "-fx-border-color: lightskyblue; " +
+            "-fx-border-insets: -1; " +
+            "-fx-background-color: aliceblue;");
+      } else if (eventType == DragEvent.DRAG_EXITED) {
+        ((Node) event.getTarget()).setStyle(
+            "-fx-padding: 4px;");
       }
+
+      event.consume();
     }
   }
 
@@ -606,17 +607,7 @@ public class Main extends Application {
       @Override
       protected void updateItem(Path item, boolean empty) {
         super.updateItem(item, empty);
-        if (empty || item == null) {
-          setGraphic(null);
-          setText(null);
-          return;
-        } else if (item.equals(steamDir.get())) {
-          setGraphic(new ImageView("/mipmap/icon_16x16.png"));
-          setText(Bundle.get("path.to.common"));
-        } else {
-          setGraphic(null);
-          setText(PATH_STRING_CONVERTER.toString(item));
-        }
+        updateRepoItem(this, item, empty);
       }
     });
 
@@ -673,11 +664,10 @@ public class Main extends Application {
         //db.setDragView(row.snapshot(sp, null));
         db.setDragView(new Image("/mipmap/ic_insert_link_black.png"), 36, 48);
         ClipboardContent content = new ClipboardContent();
-        List<File> selectedGames = selectedItems.stream()
-            .filter(selectedItem -> selectedItem.getValue().path.get() != null)
-            .map(selectedItem -> selectedItem.getValue().path.get().toFile())
+        List<Game> selectedGames = selectedItems.stream()
+            .map(TreeItem::getValue)
             .collect(Collectors.toList());
-        content.putFiles(selectedGames);
+        content.put(Game.DATA_FORMAT, selectedGames);
         db.setContent(content);
         event.consume();
       });
@@ -704,6 +694,20 @@ public class Main extends Application {
     label.setText(Bundle.get("path.to.common.empty"));
 
     games.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+  }
+
+  public static void updateRepoItem(@NotNull IndexedCell<Path> cell, Path item, boolean empty) {
+    if (empty || item == null) {
+      cell.setGraphic(null);
+      cell.setText(null);
+      return;
+    } else if (item.equals(steamDir.get())) {
+      cell.setGraphic(new ImageView("/mipmap/icon_16x16.png"));
+      cell.setText(Bundle.get("path.to.common"));
+    } else {
+      cell.setGraphic(null);
+      cell.setText(Main.PATH_STRING_CONVERTER.toString(item));
+    }
   }
 
   private synchronized void updateGames(@NotNull Scene scene) {
@@ -784,51 +788,143 @@ public class Main extends Application {
     new Thread(task).start();
   }
 
-  private static void transfer(@NotNull Node node, @NotNull Scene scene, @NotNull List<File> games, @NotNull File repo, @NotNull File steamDir) {
-    ProgressBar transferProgress = (ProgressBar) scene.lookup("#transferProgress");
-    Label transferPercent = (Label) scene.lookup("#transferPercent");
-    transferPercent.textProperty().bind(transferProgress.progressProperty().multiply(100.0).asString("%.0f%%"));
-    Label transferETA = (Label) scene.lookup("#transferETA");
-    Label transferBPS = (Label) scene.lookup("#transferBPS");
+  private void configureTransfers(@NotNull Scene scene) {
+    Node transfers = scene.lookup("#transfers");
+    configureTransfersTable(scene, transfers);
+  }
 
-    CopyTask copyTask = new CopyTask(LOG, games, repo);
-    Thread t = new Thread(copyTask);
-    t.setName("steamlinker.copy");
-    t.start();
+  private void configureTransfersTable(@NotNull Scene scene, @NotNull Node transfers) {
+    TableView<Transfer> transfersList = (TableView<Transfer>) transfers.lookup("#transfersList");
+    transfersList.setTableMenuButtonVisible(true);
+    transfersList.setItems(FXCollections.observableArrayList());
 
-    Task progress = new Task() {
-      @Override
-      protected Object call() throws Exception {
-        while (!t.isAlive()) {
-          Thread.sleep(10);
-        }
+    TableColumn<Transfer, String> titleColumn = new TableColumn<>();
+    titleColumn.setText(Bundle.get("table.title"));
+    titleColumn.setCellValueFactory(param -> param.getValue().title);
 
-        long bytesCopied, totalSize = copyTask.totalSize;
-        long previousBytes = 0L;
-        while (true) {
-          bytesCopied = copyTask.bytesCopied;
-          double percent = (double) bytesCopied / totalSize;
-          long bytesSinceLast = bytesCopied - previousBytes;
-          long remainingBytes = totalSize - bytesCopied;
-          double eta = (double) remainingBytes / bytesSinceLast;
-          Platform.runLater(() -> {
-            transferProgress.setProgress(percent);
-            transferBPS.setText(Utils.humanReadableByteCount(bytesSinceLast, true) + "ps");
-            transferETA.setText(String.format("%.0f:%02.0f:%02.0f", eta / 3600, (eta % 3600) / 60, eta % 60));
-          });
+    TableColumn<Transfer, Double> progressColumn = new TableColumn<>();
+    progressColumn.setText(Bundle.get("table.progress"));
+    progressColumn.setCellFactory(param -> new TableCell<Transfer, Double>() {
+      private final Node graphic;
+      private final ProgressBar transferProgress;
+      private final Label transferPercent;
+      ObservableValue<Double> observable;
 
-          previousBytes = bytesCopied;
-          if (bytesCopied < totalSize) {
-            Thread.sleep(1000);
-          } else {
-            break;
-          }
-        }
-
-        return null;
+      {
+        transferProgress = new ProgressBar();
+        transferProgress.setMaxWidth(Double.MAX_VALUE);
+        transferPercent = new Label();
+        graphic = new StackPane(transferProgress, transferPercent);
+        getStylesheets().add("/style/transfer_progress_layout.css");
       }
-    };
 
-    new Thread(progress).start();
+      @Override
+      protected void updateItem(Double item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty) {
+          setGraphic(null);
+        } else {
+          transferProgress.progressProperty().unbind();
+          final TableColumn<Transfer, Double> column = getTableColumn();
+          observable = column == null ? null : column.getCellObservableValue(getIndex());
+          if (observable != null) {
+            transferProgress.progressProperty().bind(observable);
+            transferPercent.textProperty().bind(transferProgress.progressProperty().multiply(100.0).asString("%.0f%%"));
+            transferPercent.visibleProperty().bind(transferProgress.progressProperty().greaterThanOrEqualTo(0.0));
+          } else if (item != null) {
+            transferProgress.setProgress(item);
+            transferPercent.setText(String.format("%.0f%%", item * 100.0));
+          }
+
+          setGraphic(graphic);
+        }
+      }
+    });
+    progressColumn.setCellValueFactory((TableColumn.CellDataFeatures<Transfer, Double> param) -> param.getValue().progress.asObject());
+    progressColumn.setStyle("-fx-alignment: CENTER;");
+
+    TableColumn<Transfer, Path> sourceColumn = new TableColumn<>();
+    sourceColumn.setText(Bundle.get("table.source"));
+    sourceColumn.setCellFactory(param -> new TableCell<Transfer, Path>() {
+      @Override
+      protected void updateItem(Path item, boolean empty) {
+        super.updateItem(item, empty);
+        updateRepoItem(this, item, empty);
+      }
+    });
+    sourceColumn.setStyle("-fx-alignment: CENTER-LEFT;");
+    //sourceColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
+    sourceColumn.setCellValueFactory(param -> param.getValue().src);
+
+    TableColumn<Transfer, Path> destinationColumn = new TableColumn<>();
+    destinationColumn.setText(Bundle.get("table.destination"));
+    destinationColumn.setCellFactory(param -> new TableCell<Transfer, Path>() {
+      @Override
+      protected void updateItem(Path item, boolean empty) {
+        super.updateItem(item, empty);
+        updateRepoItem(this, item, empty);
+      }
+    });
+    destinationColumn.setStyle("-fx-alignment: CENTER-LEFT;");
+    //destinationColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
+    destinationColumn.setCellValueFactory(param -> param.getValue().dst);
+
+    //games.setColumnResizePolicy(TreeTableView.CONSTRAINED_RESIZE_POLICY);
+    titleColumn.prefWidthProperty().bind(transfersList.widthProperty().multiply(0.25).subtract(15));
+    progressColumn.prefWidthProperty().bind(transfersList.widthProperty().multiply(0.25));
+    sourceColumn.prefWidthProperty().bind(transfersList.widthProperty().multiply(0.25));
+    destinationColumn.prefWidthProperty().bind(transfersList.widthProperty().multiply(0.25));
+
+    //noinspection unchecked
+    transfersList.getColumns().setAll(titleColumn, progressColumn, sourceColumn, destinationColumn);
+    configureTransfersControls(scene, transfers, transfersList);
+  }
+
+  private void configureTransfersControls(@NotNull Scene scene, @NotNull Node transfers, @NotNull TableView<Transfer> transfersTable) {
+    MultipleSelectionModel<Transfer> selectionModel = transfersTable.getSelectionModel();
+    ObservableList<Transfer> selectedItems = selectionModel.getSelectedItems();
+
+    Button btnRemoveTransfer = (Button) transfers.lookup("#btnRemoveTransfer");
+    btnRemoveTransfer.disableProperty().bind(Bindings.size(selectedItems).isEqualTo(0));
+    btnRemoveTransfer.setOnAction(event -> transfersTable.getItems().removeAll(selectedItems));
+
+    Button btnClearTransfers = (Button) transfers.lookup("#btnClearTransfers");
+    btnClearTransfers.disableProperty().bind(Bindings.size(transfersTable.getItems()).isEqualTo(0));
+    btnClearTransfers.setOnAction(event -> transfersTable.getItems().clear());
+  }
+
+  private void transfer(@NotNull Scene scene, @NotNull List<Game> games, @NotNull Path repo) {
+    if (DEBUG_GAMES_QUEUE) {
+      for (Game game : games) {
+        LOG.debug("Enqueueing " + game.title.get());
+      }
+    }
+
+    Node transfers = scene.lookup("#transfers");
+    TableView<Transfer> transfersList = (TableView<Transfer>) transfers.lookup("#transfersList");
+
+    List<Transfer> items = games.stream()
+        .map(g -> new Transfer(g, repo))
+        .collect(Collectors.toList());
+    transfersList.getItems().addAll(items);
+    ToggleButton btnPerformTransfers = (ToggleButton) scene.lookup("#btnPerformTransfers");
+    if (!btnPerformTransfers.isSelected()) {
+      return;
+    }
+
+    for (Transfer transfer : items) {
+      doTransfer(transfer);
+    }
+  }
+
+  private void doTransfer(@NotNull Transfer transfer) {
+    File src = transfer.src.get().toFile();
+    File dst = transfer.dst.get().toFile();
+    transfer.task.set(new CopyTask(LOG, src, dst));
+
+    // TODO: schedule on task property changed (i.e., executors framework)
+    Thread t = new Thread(transfer.task.get());
+    t.setName("steamlinker.copy." + transfer.title.get());
+    t.start();
   }
 }

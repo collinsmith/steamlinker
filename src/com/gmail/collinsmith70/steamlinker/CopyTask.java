@@ -12,39 +12,37 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.List;
 
 import javafx.concurrent.Task;
 
 public class CopyTask extends Task {
+  private static final boolean DEBUG_COPYING = true;
+
   private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
 
   @NotNull final Logger log;
-  @NotNull final List<File> srcDirs;
+  @NotNull final File srcDir;
   @NotNull final File destDir;
 
   long bytesCopied;
-  final long totalSize;
+  long totalSize;
 
-  public CopyTask(@NotNull Logger log, @NotNull List<File> srcDirs, @NotNull File destDir) {
+  public CopyTask(@NotNull Logger log, @NotNull File srcDir, @NotNull File destDir) {
     this.log = log;
     // TODO: check validity (even though this should be checked at this point)
-    this.srcDirs = srcDirs;
+    this.srcDir = srcDir;
     this.destDir = destDir;
-
-    long totalSize = 0L;
-    for (File dir : srcDirs) {
-      totalSize += FileUtils.sizeOfDirectory(dir);
-    }
-
-    this.totalSize = totalSize;
   }
 
   @Override
   protected Object call() throws Exception {
-    for (File dir : srcDirs) {
-      log.info(dir + "->" + destDir.toPath().resolve(dir.toPath().getFileName()));
-      copyDirectoryToDirectory(dir, destDir);
+    this.bytesCopied = 0;
+    this.totalSize = FileUtils.sizeOfDirectory(srcDir);
+    updateProgress(bytesCopied, totalSize);
+
+    log.info(srcDir + "->" + destDir.toPath().resolve(srcDir.toPath().getFileName()));
+    if (!DEBUG_COPYING) {
+      copyDirectoryToDirectory(srcDir, destDir);
     }
 
     return null;
@@ -156,7 +154,7 @@ public class CopyTask extends Task {
     long count = 0;
     int n = 0;
     while (-1 != (n = input.read(buffer))) {
-      bytesCopied += n;
+      updateProgress(bytesCopied += n, totalSize);
       output.write(buffer, 0, n);
       count += n;
     }

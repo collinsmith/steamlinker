@@ -116,9 +116,6 @@
   </left>
   <center>
       <TreeTableView fx:id="games" HBox.hgrow="ALWAYS">
-        <!--<columnResizePolicy>-->
-          <!--<TreeTableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>-->
-        <!--</columnResizePolicy>-->
         <placeholder>
           <fx:include source="async_placeholder.fxml"/>
         </placeholder>
@@ -129,7 +126,7 @@
       <BorderPane.margin>
         <Insets top="8"/>
       </BorderPane.margin>
-      <fx:include source="transfers_layout.fxml" HBox.hgrow="ALWAYS" style="-fx-padding: 0px;"/>
+      <fx:include source="transfers_layout.fxml" fx:id="transfers" HBox.hgrow="ALWAYS" style="-fx-padding: 0px;"/>
     </TitledPane>
   </bottom>
 </BorderPane>
