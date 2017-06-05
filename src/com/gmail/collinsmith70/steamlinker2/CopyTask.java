@@ -1,8 +1,7 @@
-package com.gmail.collinsmith70.steamlinker;
+package com.gmail.collinsmith70.steamlinker2;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -16,31 +15,44 @@ import java.io.OutputStream;
 import javafx.concurrent.Task;
 
 public class CopyTask extends Task {
-  private static final boolean DEBUG_COPYING = true;
+  private static final boolean DEBUG_COPYING = false;
 
   private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
 
-  @NotNull final Logger log;
   @NotNull final File srcDir;
   @NotNull final File destDir;
 
-  long bytesCopied;
-  long totalSize;
+  private long bytesCopied;
+  private long totalSize;
 
-  public CopyTask(@NotNull Logger log, @NotNull File srcDir, @NotNull File destDir) {
-    this.log = log;
+  public CopyTask(@NotNull File srcDir, @NotNull File destDir) {
     // TODO: check validity (even though this should be checked at this point)
     this.srcDir = srcDir;
     this.destDir = destDir;
   }
 
+  @NotNull
+  public SizingTask calculateSize() {
+    return new SizingTask();
+  }
+
+  public class SizingTask extends Task<Long> {
+    private SizingTask() {
+      updateProgress(0, 1);
+    }
+
+    @Override
+    protected Long call() throws Exception {
+      bytesCopied = 0;
+      totalSize = FileUtils.sizeOfDirectory(srcDir);
+      updateProgress(totalSize, totalSize);
+      CopyTask.this.updateProgress(bytesCopied, totalSize);
+      return totalSize;
+    }
+  }
+
   @Override
   protected Object call() throws Exception {
-    this.bytesCopied = 0;
-    this.totalSize = FileUtils.sizeOfDirectory(srcDir);
-    updateProgress(bytesCopied, totalSize);
-
-    log.info(srcDir + "->" + destDir.toPath().resolve(srcDir.toPath().getFileName()));
     if (!DEBUG_COPYING) {
       copyDirectoryToDirectory(srcDir, destDir);
     }
@@ -104,7 +116,7 @@ public class CopyTask extends Task {
     if (files == null) {  // null if security restricted
       throw new IOException("Failed to list contents of " + srcDir);
     }
-    for (int i = 0; i < files.length; i++) {
+    for (int i = 0; i < files.length && !isCancelled(); i++) {
       File copiedFile = new File(destDir, files[i].getName());
       if (files[i].isDirectory()) {
         doCopyDirectory(files[i], copiedFile, preserveFileDate);
@@ -153,7 +165,7 @@ public class CopyTask extends Task {
     byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
     long count = 0;
     int n = 0;
-    while (-1 != (n = input.read(buffer))) {
+    while (!isCancelled() && -1 != (n = input.read(buffer))) {
       updateProgress(bytesCopied += n, totalSize);
       output.write(buffer, 0, n);
       count += n;

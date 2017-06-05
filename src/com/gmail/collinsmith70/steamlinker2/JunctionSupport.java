@@ -1,4 +1,4 @@
-package com.gmail.collinsmith70.steamlinker;
+package com.gmail.collinsmith70.steamlinker2;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
