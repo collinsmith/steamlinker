@@ -17,7 +17,7 @@
 <?import javafx.scene.text.Text?>
 <BorderPane xmlns="http://javafx.com/javafx/8.0.112"
             xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.gmail.collinsmith70.steamlinker.Main"
+            fx:controller="com.gmail.collinsmith70.steamlinker2.Main"
             minWidth="640" minHeight="480"
             maxWidth="Infinity" maxHeight="Infinity"
             prefWidth="800" prefHeight="600"

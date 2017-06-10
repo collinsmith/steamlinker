@@ -1,0 +1,38 @@
+.root {
+  -repo-color-available: #0094c5;
+  -repo-color-limited:   #d00000;
+}
+
+BorderPane {
+  -fx-padding: 8px;
+}
+
+BorderPane > left {
+  margin: 8px;
+}
+
+.root > VBox {
+  -fx-spacing: 8px;
+}
+
+.jfxRepo {
+  -fx-padding: 4px;
+}
+
+.jfxRepo :hover {
+  -fx-border-color: lightskyblue;
+  -fx-border-insets: -1;
+  -fx-background-color: aliceblue;
+}
+
+#jfxRepo > #jfxLabel {
+  -fx-font-size: 10pt;
+  -fx-text-overrun: ellipsis;
+}
+
+#jfxRepo > #jfxProgressBarLabel {
+  -fx-opacity: 0.5;
+}
+
+.repo-space-available { -fx-accent: -repo-color-available; }
+.repo-space-limited   { -fx-accent: -repo-color-limited;   }

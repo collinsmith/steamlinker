@@ -1,5 +1,6 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -9,76 +10,115 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.function.Function;
 
-import javafx.beans.property.DoubleProperty;
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Task;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.input.DataFormat;
 
-public class Game implements Serializable {
-  public static final DataFormat DATA_FORMAT = new DataFormat(Game.class.getName() + "-list");
+class Game implements Serializable {
 
-  transient StringProperty title = new SimpleStringProperty();
-  transient ObjectProperty<Path> repo = new SimpleObjectProperty<>();
-  transient ObjectProperty<Path> folder = new SimpleObjectProperty<>();
-  transient ObjectProperty<Path> path = new SimpleObjectProperty<>();
-  transient LongProperty size = new SimpleLongProperty();
+  public static final DataFormat GAME = new DataFormat(Game.class.getName());
+  public static final DataFormat AS_LIST = new DataFormat(Game.class.getName() + "-list");
 
-  Game() {}
+  private static final Function<Path, Path> PATH_TO_REPO = path -> path != null ? path.getParent() : null;
+  private static final Function<Path, Path> PATH_TO_FOLDER = path -> path != null ? path.getFileName() : null;
 
-  Game(@NotNull String title, @Nullable Path path) {
-    this(title, path, Long.MIN_VALUE);
-  }
-
-  Game(@NotNull String title, @Nullable Path path, long size) {
-    this.title.set(title);
-    this.repo.set(path != null ? path.getParent() : null);
-    this.folder.set(path != null ? path.getFileName() : null);
-    this.path.set(path);
-    this.size.set(size);
-    this.path.addListener((observable, oldValue, newValue) -> {
-      if (newValue != null) {
-        this.repo.set(newValue.getParent());
-        this.folder.set(newValue.getFileName());
-      }
-    });
-  }
+  @NotNull transient StringProperty title;
+  @NotNull transient ObjectProperty<Path> path;
+  @NotNull transient ReadOnlyObjectProperty<Path> repo;
+  @NotNull transient ReadOnlyObjectProperty<Path> folder;
+  @NotNull transient LongProperty size;
 
   @NotNull
-  StringProperty titleProperty() {
+  public StringProperty titleProperty() {
     return title;
   }
 
   @NotNull
-  ObjectProperty<Path> repoProperty() {
-    return repo;
-  }
-
-  @NotNull
-  ObjectProperty<Path> folderProperty() {
-    return folder;
-  }
-
-  @NotNull
-  ObjectProperty<Path> pathProperty() {
+  public ObjectProperty<Path> pathProperty() {
     return path;
   }
 
   @NotNull
-  LongProperty sizeProperty() {
+  public ReadOnlyObjectProperty<Path> repoProperty() {
+    return repo;
+  }
+
+  @NotNull
+  public ReadOnlyObjectProperty<Path> folderProperty() {
+    return folder;
+  }
+
+  @NotNull
+  public LongProperty sizeProperty() {
     return size;
+  }
+
+  @NotNull
+  Game init(@NotNull String title, @Nullable Path path) {
+    return init(title, path, Long.MIN_VALUE);
+  }
+
+  @NotNull
+  Game init(@NotNull String title, @Nullable Path path, long size) {
+    this.title = new SimpleStringProperty(title);
+    this.path = new SimpleObjectProperty<>(path);
+    this.repo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(Game.this.path.get()), this.path);
+    this.folder = createReadOnlyWrapper(() -> PATH_TO_FOLDER.apply(Game.this.path.get()), this.path);
+    this.size = new SimpleLongProperty(size);
+    return this;
+  }
+
+  private static <T> ReadOnlyObjectProperty<T> createReadOnlyWrapper(Callable<T> func, Observable... dependencies) {
+    ReadOnlyObjectWrapper<T> wrapper = new ReadOnlyObjectWrapper<>();
+    wrapper.bind(Bindings.createObjectBinding(func, dependencies));
+    return wrapper;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (obj == null) {
+      return false;
+    } else if (obj == this) {
+      return true;
+    } else if (!Game.class.isAssignableFrom(obj.getClass())) {
+      return false;
+    }
+
+    final Game other = (Game) obj;
+    return Objects.equals(title.get(), other.title.get())
+        && Objects.equals(path.get(), other.path.get())
+        && Objects.equals(size.get(), other.size.get());
+  }
+
+  @Override
+  public int hashCode() {
+    int result = 17;
+    result = 37 * result + (title.get() != null ? title.get().hashCode() : 0);
+    result = 37 * result + (path.get() != null ? path.get().hashCode() : 0);
+    result = 37 * result + Long.hashCode(size.get());
+    return result;
   }
 
   @Override
   public String toString() {
-    return title.get() + " (" + Utils.humanReadableByteCount(size.get(), true) + ") [" + path.get() + "]";
+    return new ToStringBuilder(this)
+        .append("title", title.get())
+        .append("path", path.get())
+        .append("size", Utils.bytesToString(size.get()))
+        .toString();
   }
 
   private void writeObject(ObjectOutputStream out) throws IOException {
@@ -90,49 +130,66 @@ public class Game implements Serializable {
 
   private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
     in.defaultReadObject();
-    String title = in.readUTF();
-    String path = in.readUTF();
-    long size = in.readLong();
-
-    this.title = new SimpleStringProperty();
-    this.repo = new SimpleObjectProperty<>();
-    this.folder = new SimpleObjectProperty<>();
-    this.path = new SimpleObjectProperty<>();
-    this.size = new SimpleLongProperty();
-
-    Path asPath = Paths.get(path);
-    this.title.set(title);
-    this.repo.set(asPath != null ? asPath.getParent() : null);
-    this.folder.set(asPath != null ? asPath.getFileName() : null);
-    this.path.set(asPath);
-    this.size.set(size);
-    this.path.addListener((observable, oldValue, newValue) -> {
-      if (newValue != null) {
-        this.repo.set(newValue.getParent());
-        this.folder.set(newValue.getFileName());
-      }
-    });
+    init(in.readUTF(), Paths.get(in.readUTF()), in.readLong());
   }
 
   @NotNull
-  Transfer transferTo(@NotNull Path dst) {
+  Transfer createTransfer(@NotNull Path dst) {
     return new Transfer(dst);
   }
 
-  public class Transfer {
-    final Game game;
-    final ObjectProperty<Path> src;
-    final ObjectProperty<Path> dst;
-    final DoubleProperty progress;
-    final ObjectProperty<Task> task;
+  final class Transfer extends Task {
+    @NotNull final Game game;
+
+    @NotNull final ReadOnlyObjectProperty<Path> src;
+    @NotNull final ReadOnlyObjectProperty<Path> srcRepo;
+    @NotNull final ReadOnlyObjectProperty<Path> dst;
+    @NotNull final ReadOnlyObjectProperty<Path> dstRepo;
 
     private Transfer(@NotNull Path dst) {
       this.game = Game.this;
-      this.src = game.path;
-      this.dst = new SimpleObjectProperty<>(dst);
-      this.progress = new SimpleDoubleProperty(ProgressBar.INDETERMINATE_PROGRESS);
-      this.task = new SimpleObjectProperty<>();
-      this.task.addListener((observable, oldValue, newValue) -> this.progress.bind(newValue.progressProperty()));
+      this.src = createReadOnlyWrapper(() -> game.path.get(), game.path);
+      this.srcRepo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(this.src.get()), this.src);
+      this.dst = new ReadOnlyObjectWrapper<>(dst);
+      this.dstRepo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(this.dst.get()), this.dst);
+    }
+
+    @Override
+    protected Object call() throws Exception {
+
+      return null;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+      if (obj == null) {
+        return false;
+      } else if (obj == this) {
+        return true;
+      } else if (!Transfer.class.isAssignableFrom(obj.getClass())) {
+        return false;
+      }
+
+      final Transfer other = (Transfer) obj;
+      return Objects.equals(game, other.game)
+          /** src should have been checked by {@link Game#equals(Object)}*/
+          //&& Objects.equals(src.get(), other.src.get());
+          && Objects.equals(dst.get(), other.dst.get());
+    }
+
+    @Override
+    public int hashCode() {
+      int result = 17;
+      result = 37 * result + (game != null ? game.hashCode() : 0);
+      /** src should have been hashed by {@link Game#hashCode()}*/
+      //result = 37 * result + (src.get() != null ? src.get().hashCode() : 0);
+      result = 37 * result + (dst.get() != null ? dst.get().hashCode() : 0);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return src + "->" + dst;
     }
   }
 }

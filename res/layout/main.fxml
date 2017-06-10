@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.Integer?>
+<?import java.lang.String?>
+<?import javafx.collections.FXCollections?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.gmail.collinsmith70.steamlinker.MainController"
+            minWidth="640" minHeight="480"
+            maxWidth="Infinity" maxHeight="Infinity"
+            prefWidth="800" prefHeight="600"
+            stylesheets="@../css/main.css">
+  <fx:define>
+    <Integer fx:id="CONTENT_SPACING" fx:value="8"/>
+  </fx:define>
+  <left>
+    <VBox>
+      <BorderPane.margin>
+        <Insets right="$CONTENT_SPACING"/>
+      </BorderPane.margin>
+      <TitledPane text="%label.libs"
+                  collapsible="true">
+        <ListView fx:id="jfxLibs"
+                  VBox.vgrow="ALWAYS">
+        </ListView>
+      </TitledPane>
+      <TitledPane text="%label.repos"
+                  collapsible="true">
+        <ListView fx:id="jfxRepos"
+                  VBox.vgrow="ALWAYS">
+          <items>
+            <FXCollections fx:factory="observableArrayList">
+              <String fx:value="One"/>
+              <String fx:value="Two"/>
+              <String fx:value="Three"/>
+              <String fx:value="Four"/>
+              <String fx:value="Five"/>
+            </FXCollections>
+          </items>
+        </ListView>
+      </TitledPane>
+    </VBox>
+  </left>
+  <center>
+    <TableView fx:id="jfxGames"/>
+  </center>
+</BorderPane>
