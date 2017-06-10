@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
@@ -41,15 +43,19 @@ import javafx.scene.control.Control;
 import javafx.scene.control.IndexedCell;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.image.ImageView;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
 import javafx.util.Callback;
 import javafx.util.StringConverter;
+import javafx.util.converter.DefaultStringConverter;
 
 import static com.gmail.collinsmith70.steamlinker.Main.PREFERENCES;
 
@@ -63,36 +69,82 @@ public class MainController implements Initializable {
     LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
   }
 
-  @FXML private TableView<Game> jfxGames;
   @FXML private ListView<Path> jfxLibs;
   @FXML private ListView<Path> jfxRepos;
 
-  private final ListProperty<Game> games = new SimpleListProperty<>(FXCollections.observableArrayList());
-  {
-    games.addListener((ListChangeListener<Game>) c -> {
-      if (!c.next()) {
-        return;
-      }
+  @FXML private TableView<Game> jfxGames;
+  @FXML private TableColumn<Game, String> jfxGamesTitleColumn;
+  @FXML private TableColumn<Game, Path> jfxGamesPathColumn;
+  @FXML private TableColumn<Game, Number> jfxGamesSizeColumn;
 
-      List<? extends Game> games = c.getAddedSubList();
-      Task updateSizeTask = new Task() {
-        @Override
-        protected Object call() throws Exception {
-          for (Game game : games) {
-            Path path = game.path.get();
-            if (path == null) {
+  private final ListProperty<Game> games = new SimpleListProperty<>(FXCollections.observableArrayList()); {
+    games.addListener((ListChangeListener<Game>) c -> {
+      while (c.next()) {
+        if (c.wasAdded()) {
+          List<? extends Game> games = c.getAddedSubList();
+          Task updateSizeTask = new Task() {
+            @Override
+            protected Object call() throws Exception {
+              for (Game game : games) {
+                Path path = game.path.get();
+                if (path == null) {
+                  continue;
+                }
+
+                File file = path.toFile();
+                game.size.set(FileUtils.sizeOfDirectory(file));
+                Platform.runLater(() -> jfxGames.refresh());
+              }
+
+              return null;
+            }
+          };
+          new Thread(updateSizeTask).start();
+        }
+      }
+    });
+  }
+  private final ListProperty<ScrollBarMark> marks = new SimpleListProperty<>(FXCollections.observableArrayList()); {
+    games.addListener((ListChangeListener<? super Game>) c -> {
+      while (c.next()) {
+        if (c.wasAdded() || c.wasReplaced()) {
+          if (c.wasReplaced()) {
+            marks.forEach(ScrollBarMark::detach);
+            marks.clear();
+          }
+
+          final ScrollBar scrollBar = (ScrollBar) jfxGames.lookup(".scroll-bar:vertical");
+          for (int i = c.getFrom(); i < c.getTo(); i++) {
+            final Game game = games.get(i);
+            if (game.path.get() != null) {
               continue;
             }
 
-            File file = path.toFile();
-            game.size.set(FileUtils.sizeOfDirectory(file));
-            Platform.runLater(() -> jfxGames.refresh());
+            ScrollBarMark mark = new ScrollBarMark();
+            mark.setPosition((double) i / games.size());
+            mark.attach(scrollBar);
+            marks.add(mark);
           }
+        } else if (c.wasRemoved()) {
+          marks.forEach(ScrollBarMark::detach);
+          marks.clear();
 
-          return null;
+          final ScrollBar scrollBar = (ScrollBar) jfxGames.lookup(".scroll-bar:vertical");
+          final ObservableList<? extends Game> games = c.getList();
+          final int size = games.size();
+          for (int i = 0; i < size; i++) {
+            final Game game = games.get(i);
+            if (game.path.get() != null) {
+              continue;
+            }
+
+            ScrollBarMark mark = new ScrollBarMark();
+            mark.setPosition((double) i / games.size());
+            mark.attach(scrollBar);
+            marks.add(mark);
+          }
         }
-      };
-      new Thread(updateSizeTask).start();
+      }
     });
   }
   private final ListProperty<Path> libs = new SimpleListProperty<>(FXCollections.observableArrayList());
@@ -176,28 +228,74 @@ public class MainController implements Initializable {
     jfxRepos.setCellFactory(cellFactory);
     jfxRepos.setItems(repos);
 
+    initializeColumns();
     jfxGames.setTableMenuButtonVisible(true);
-    jfxGames.getColumns().setAll(createColumns());
     jfxGames.setItems(games);
+    jfxGames.setEditable(true);
+    jfxGames.setRowFactory(callback -> {
+      TableRow<Game> row = new TableRow<Game>() {
+        private static final String jfxBrokenJunctionRow = "jfxBrokenJunctionRow";
+
+        @Override
+        protected void updateItem(Game item, boolean empty) {
+          super.updateItem(item, empty);
+          List<String> styleClass = getStyleClass();
+          if (empty || item == null || item.path.get() != null) {
+            styleClass.remove(jfxBrokenJunctionRow);
+            //setTooltip(null);
+            return;
+          }
+
+          if (!styleClass.contains(jfxBrokenJunctionRow)) {
+            styleClass.add(jfxBrokenJunctionRow);
+            //setTooltip(new Tooltip(Bundle.get("tooltip.broken.junction")));
+          }
+        }
+      };
+      return row;
+    });
   }
 
   @SuppressWarnings("unchecked")
-  private TableColumn<Game, ?>[] createColumns() {
-    TableColumn<Game, String> titleColumn = new TableColumn<>();
-    titleColumn.setText(Bundle.get("game.title"));
-    titleColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-    titleColumn.setOnEditCommit(event -> {
+  private void initializeColumns() {
+    setupCellValueFactory(jfxGamesTitleColumn, Game::titleProperty);
+    jfxGamesTitleColumn.setCellFactory(Callback -> new TextFieldTableCell<Game, String>(new DefaultStringConverter()) {
+      @Override
+      public void updateItem(String item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty) {
+          setGraphic(null);
+          setEditable(true);
+        }
+
+        TableRow<Game> row = getTableRow();
+        Game game = row.getItem();
+        if (game != null && game.path.get() == null) {
+          Node graphic = new FontIcon("gmi-warning:20:yellow");
+          Tooltip tooltip = new Tooltip(Bundle.get("tooltip.broken.junction"));
+          Tooltip.install(graphic, tooltip);
+          graphic.setOnMouseClicked(event -> {
+            tooltip.show(graphic, event.getScreenX(), event.getScreenY());
+            tooltip.setAutoHide(true);
+            event.consume();
+          });
+          setGraphic(graphic);
+          setEditable(false);
+        } else {
+          setGraphic(null);
+          setEditable(true);
+        }
+      }
+    });
+    jfxGamesTitleColumn.setOnEditCommit(event -> {
       Game game = event.getRowValue();
       String name = event.getNewValue();
       game.title.setValue(name);
       PREFERENCES.put(Main.Prefs.GAME_TITLE + game.folder.get(), name);
     });
 
-    TableColumn<Game, Path> pathColumn = new TableColumn<>();
-    pathColumn.setText(Bundle.get("game.path"));
-    pathColumn.setStyle("-fx-alignment: CENTER-LEFT;");
-    //pathColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
-    pathColumn.setCellFactory(value -> new TableCell<Game, Path>() {
+    setupCellValueFactory(jfxGamesPathColumn, Game::repoProperty);
+    jfxGamesPathColumn.setCellFactory(value -> new TableCell<Game, Path>() {
       @Override
       protected void updateItem(Path item, boolean empty) {
         super.updateItem(item, empty);
@@ -205,10 +303,8 @@ public class MainController implements Initializable {
       }
     });
 
-    TableColumn<Game, Number> sizeColumn = new TableColumn<>();
-    sizeColumn.setText(Bundle.get("game.size"));
-    sizeColumn.setStyle("-fx-alignment: CENTER-RIGHT;");
-    sizeColumn.setCellFactory(value -> new TableCell<Game, Number>() {
+    setupCellValueFactory(jfxGamesSizeColumn, Game::sizeProperty);
+    jfxGamesSizeColumn.setCellFactory(value -> new TableCell<Game, Number>() {
       @Override
       protected void updateItem(Number item, boolean empty) {
         super.updateItem(item, empty);
@@ -221,15 +317,9 @@ public class MainController implements Initializable {
       }
     });
 
-    setupCellValueFactory(titleColumn, Game::titleProperty);
-    setupCellValueFactory(pathColumn, Game::repoProperty);
-    setupCellValueFactory(sizeColumn, Game::sizeProperty);
-
-    titleColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.375));
-    pathColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.5));
-    sizeColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.125).subtract(15));
-
-    return (TableColumn<Game, ?>[]) new TableColumn[] { titleColumn, pathColumn, sizeColumn };
+    jfxGamesTitleColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.375));
+    jfxGamesPathColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.5));
+    jfxGamesSizeColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.125).subtract(15));
   }
 
   private static <T> void setupCellValueFactory(@NotNull TableColumn<Game, T> column, @NotNull Function<Game, ObservableValue<T>> mapper) {

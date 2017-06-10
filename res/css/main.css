@@ -36,3 +36,15 @@ BorderPane > left {
 
 .repo-space-available { -fx-accent: -repo-color-available; }
 .repo-space-limited   { -fx-accent: -repo-color-limited;   }
+
+#jfxGames #jfxGamesSizeColumn {
+  -fx-alignment: center-right;
+}
+
+#jfxGames .jfxBrokenJunctionRow {
+  -fx-background-color: tomato;
+}
+
+#jfxGames .jfxBrokenJunctionRow:selected {
+  -fx-background-color: red;
+}

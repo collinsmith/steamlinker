@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?language javascript?>
 
 <?import java.lang.Integer?>
 <?import java.lang.String?>
 <?import javafx.collections.FXCollections?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.SelectionMode?>
+<?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.BorderPane?>
@@ -48,6 +51,18 @@
     </VBox>
   </left>
   <center>
-    <TableView fx:id="jfxGames"/>
+    <TableView fx:id="jfxGames">
+      <columns>
+        <TableColumn fx:id="jfxGamesTitleColumn"
+                     text="%game.title"/>
+        <TableColumn fx:id="jfxGamesPathColumn"
+                     text="%game.path"/>
+        <TableColumn fx:id="jfxGamesSizeColumn"
+                     text="%game.size"/>
+      </columns>
+      <fx:script>
+        jfxGames.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
+      </fx:script>
+    </TableView>
   </center>
 </BorderPane>
