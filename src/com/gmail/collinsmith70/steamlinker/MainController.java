@@ -86,12 +86,11 @@ public class MainController implements Initializable {
             @Override
             protected Object call() throws Exception {
               for (Game game : games) {
-                Path path = game.path.get();
-                if (path == null) {
+                if (game.brokenJunction.get()) {
                   continue;
                 }
 
-                File file = path.toFile();
+                File file = game.path.get().toFile();
                 game.size.set(FileUtils.sizeOfDirectory(file));
                 Platform.runLater(() -> jfxGames.refresh());
               }
@@ -116,7 +115,7 @@ public class MainController implements Initializable {
           final ScrollBar scrollBar = (ScrollBar) jfxGames.lookup(".scroll-bar:vertical");
           for (int i = c.getFrom(); i < c.getTo(); i++) {
             final Game game = games.get(i);
-            if (game.path.get() != null) {
+            if (!game.brokenJunction.get()) {
               continue;
             }
 
@@ -134,7 +133,7 @@ public class MainController implements Initializable {
           final int size = games.size();
           for (int i = 0; i < size; i++) {
             final Game game = games.get(i);
-            if (game.path.get() != null) {
+            if (!game.brokenJunction.get()) {
               continue;
             }
 
@@ -240,15 +239,16 @@ public class MainController implements Initializable {
         protected void updateItem(Game item, boolean empty) {
           super.updateItem(item, empty);
           List<String> styleClass = getStyleClass();
-          if (empty || item == null || item.path.get() != null) {
+          if (empty || item == null || !item.brokenJunction.get()) {
             styleClass.remove(jfxBrokenJunctionRow);
-            //setTooltip(null);
+            setTooltip(null);
             return;
           }
 
           if (!styleClass.contains(jfxBrokenJunctionRow)) {
             styleClass.add(jfxBrokenJunctionRow);
-            //setTooltip(new Tooltip(Bundle.get("tooltip.broken.junction")));
+            Tooltip tooltip = new Tooltip(Bundle.get("tooltip.broken.junction", item.path.get()));
+            Tooltip.install(this, tooltip);
           }
         }
       };
@@ -270,15 +270,19 @@ public class MainController implements Initializable {
 
         TableRow<Game> row = getTableRow();
         Game game = row.getItem();
-        if (game != null && game.path.get() == null) {
+        if (game != null && game.brokenJunction.get()) {
           Node graphic = new FontIcon("gmi-warning:20:yellow");
-          Tooltip tooltip = new Tooltip(Bundle.get("tooltip.broken.junction"));
-          Tooltip.install(graphic, tooltip);
-          graphic.setOnMouseClicked(event -> {
-            tooltip.show(graphic, event.getScreenX(), event.getScreenY());
-            tooltip.setAutoHide(true);
+          /*graphic.setOnMouseClicked(event -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setHeaderText(null);
+            alert.setContentText(Bundle.get("tooltip.broken.junction", game.path.get()));
+            alert.initOwner(window);
+            alert.show();
+
+            //tooltip.show(graphic, event.getScreenX(), event.getScreenY());
+            //tooltip.setAutoHide(true);
             event.consume();
-          });
+          });*/
           setGraphic(graphic);
           setEditable(false);
         } else {
@@ -372,6 +376,12 @@ public class MainController implements Initializable {
                     return result.init(name, path.toRealPath(), size);
                   } catch (IOException e) {
                     LOG.warn("Broken link detected: " + path);
+                    try {
+                      return result.init(name, Utils.toRealPath(path), true);
+                    } catch (Exception ex) {
+                      LOG.error(ex.getMessage(), ex);
+                    }
+
                     return result.init(name, null);
                   }
                 })

@@ -5,10 +5,15 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextArea;
@@ -78,5 +83,38 @@ public class Utils {
     int exp = (int) (Math.log(bytes) / Math.log(unit));
     String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp - 1) + (si ? "" : "i");
     return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+  }
+
+  @NotNull
+  public static Path toRealPath(@NotNull Path path) throws IOException, InterruptedException {
+    String fileName = path.getFileName().toString();
+    ProcessBuilder processBuilder = new ProcessBuilder(
+        "cmd.exe", "/c",
+        "dir", path.getParent().toString(),
+        "|",
+        "findstr", "/c:" + fileName + " [");
+    processBuilder.redirectErrorStream(true);
+
+    Process process = processBuilder.start();
+    String line = null;
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+      if ((line = reader.readLine()) == null) {
+        throw new AssertionError("Expected non-null input.");
+      }
+
+      while (reader.readLine() != null) {}
+    }
+
+    Pattern pattern = Pattern.compile("\\[.+\\]");
+    Matcher matcher = pattern.matcher(line);
+    if (!matcher.find()) {
+      throw new AssertionError("Expected [path] in string: " + line);
+    }
+
+    String part = matcher.group();
+    part = part.substring(1, part.length() - 1);
+
+    process.waitFor();
+    return Paths.get(part);
   }
 }

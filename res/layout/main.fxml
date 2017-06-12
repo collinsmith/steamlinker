@@ -27,26 +27,11 @@
       <BorderPane.margin>
         <Insets right="$CONTENT_SPACING"/>
       </BorderPane.margin>
-      <TitledPane text="%label.libs"
-                  collapsible="true">
-        <ListView fx:id="jfxLibs"
-                  VBox.vgrow="ALWAYS">
-        </ListView>
-      </TitledPane>
+      <ListView fx:id="jfxLibs"
+                prefHeight="0"/>
       <TitledPane text="%label.repos"
-                  collapsible="true">
-        <ListView fx:id="jfxRepos"
-                  VBox.vgrow="ALWAYS">
-          <items>
-            <FXCollections fx:factory="observableArrayList">
-              <String fx:value="One"/>
-              <String fx:value="Two"/>
-              <String fx:value="Three"/>
-              <String fx:value="Four"/>
-              <String fx:value="Five"/>
-            </FXCollections>
-          </items>
-        </ListView>
+                  collapsible="false">
+        <ListView fx:id="jfxRepos"/>
       </TitledPane>
     </VBox>
   </left>

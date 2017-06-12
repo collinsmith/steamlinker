@@ -16,10 +16,12 @@ import java.util.function.Function;
 
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -40,6 +42,7 @@ class Game implements Serializable {
   @NotNull transient ReadOnlyObjectProperty<Path> repo;
   @NotNull transient ReadOnlyObjectProperty<Path> folder;
   @NotNull transient LongProperty size;
+  @NotNull transient BooleanProperty brokenJunction;
 
   @NotNull
   public StringProperty titleProperty() {
@@ -67,17 +70,38 @@ class Game implements Serializable {
   }
 
   @NotNull
+  public BooleanProperty brokenJunctionProperty() {
+    return brokenJunction;
+  }
+
+  @NotNull
   Game init(@NotNull String title, @Nullable Path path) {
     return init(title, path, Long.MIN_VALUE);
   }
 
   @NotNull
+  Game init(@NotNull String title, @Nullable Path path, boolean broken) {
+    return init(title, path, true, Long.MIN_VALUE);
+  }
+
+  @NotNull
   Game init(@NotNull String title, @Nullable Path path, long size) {
+    return init(title, path, false, size);
+  }
+
+  @NotNull
+  Game init(@NotNull String title, @Nullable Path path, boolean broken, long size) {
     this.title = new SimpleStringProperty(title);
     this.path = new SimpleObjectProperty<>(path);
     this.repo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(Game.this.path.get()), this.path);
     this.folder = createReadOnlyWrapper(() -> PATH_TO_FOLDER.apply(Game.this.path.get()), this.path);
     this.size = new SimpleLongProperty(size);
+    this.brokenJunction = new SimpleBooleanProperty(broken);
+    this.path.addListener((observable, oldValue, newValue) -> {
+      if (newValue == null) {
+        brokenJunction.set(true);
+      }
+    });
     return this;
   }
 
