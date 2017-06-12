@@ -24,6 +24,7 @@ import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.value.ObservableValue;
@@ -223,6 +224,7 @@ public class MainController implements Initializable {
 
     jfxLibs.setCellFactory(cellFactory);
     jfxLibs.setItems(libs);
+    jfxLibs.prefHeightProperty().bind(Bindings.max(Bindings.min(3, Bindings.size(libs)), 1).multiply(63));
 
     jfxRepos.setCellFactory(cellFactory);
     jfxRepos.setItems(repos);

@@ -27,10 +27,14 @@
       <BorderPane.margin>
         <Insets right="$CONTENT_SPACING"/>
       </BorderPane.margin>
-      <ListView fx:id="jfxLibs"
-                prefHeight="0"/>
-      <TitledPane text="%label.repos"
+      <TitledPane text="%label.libs"
                   collapsible="false">
+        <ListView fx:id="jfxLibs"/>
+      </TitledPane>
+      <TitledPane text="%label.repos"
+                  collapsible="false"
+                  VBox.vgrow="ALWAYS"
+                  maxHeight="Infinity">
         <ListView fx:id="jfxRepos"/>
       </TitledPane>
     </VBox>
