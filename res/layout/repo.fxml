@@ -7,7 +7,8 @@
 <fx:root xmlns="http://javafx.com/javafx"
          xmlns:fx="http://javafx.com/fxml"
          type="javafx.scene.layout.HBox"
-         alignment="CENTER_LEFT">
+         alignment="CENTER_LEFT"
+         onDragOver="#onDragOver">
   <VBox id="jfxRepo"
         HBox.hgrow="ALWAYS">
     <Label fx:id="jfxLabel"/>

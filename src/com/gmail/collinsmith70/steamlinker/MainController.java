@@ -14,6 +14,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -225,7 +226,8 @@ public class MainController implements Initializable {
       };
       row.setOnDragDetected(event -> {
         event.consume();
-        List<Game> selectedItems = jfxGames.getSelectionModel().getSelectedItems();
+        TableView.TableViewSelectionModel<Game> selectionModel = jfxGames.getSelectionModel();
+        List<Game> selectedItems = selectionModel.getSelectedItems();
         if (selectedItems.isEmpty()) {
           return;
         }
@@ -234,7 +236,7 @@ public class MainController implements Initializable {
         params.setFill(Color.TRANSPARENT);
 
         ClipboardContent content = new ClipboardContent();
-        content.put(Game.AS_LIST, selectedItems);
+        content.put(Game.AS_LIST, new ArrayList<>(selectedItems));
 
         Dragboard db = jfxGames.startDragAndDrop(TransferMode.ANY);
         db.setDragView(row.snapshot(params, null));
