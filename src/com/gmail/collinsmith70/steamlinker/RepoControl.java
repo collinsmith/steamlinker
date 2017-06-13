@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
@@ -16,6 +17,7 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -42,6 +44,7 @@ public class RepoControl extends HBox implements Initializable {
   private ObjectProperty<Path> repoProperty = new SimpleObjectProperty<>();
   private LongProperty useableSpaceProperty = new SimpleLongProperty();
   private LongProperty totalSpaceProperty = new SimpleLongProperty();
+  private ObjectProperty<EventHandler<? super Game.TransferEvent>> transferEventHandler = new SimpleObjectProperty<>();
 
   public RepoControl() {
     this(null);
@@ -119,8 +122,22 @@ public class RepoControl extends HBox implements Initializable {
     return repoProperty;
   }
 
+  @Nullable
+  public EventHandler<? super Game.TransferEvent> getOnTransfer() {
+    return transferEventHandler.get();
+  }
+
+  public void setOnTransfer(@Nullable EventHandler<? super Game.TransferEvent> value) {
+    transferEventHandler.set(value);
+  }
+
+  @NotNull
+  public ObjectProperty<EventHandler<? super Game.TransferEvent>> onTransferProperty() {
+    return transferEventHandler;
+  }
+
   @FXML
-  private void onDragOver(DragEvent event) {
+  private void onDragOver(@NotNull DragEvent event) {
     Dragboard db = event.getDragboard();
     if (!db.hasContent(Game.AS_LIST)) {
       return;
@@ -133,6 +150,28 @@ public class RepoControl extends HBox implements Initializable {
     List<Game> games = (List<Game>) db.getContent(Game.AS_LIST);
     if (!games.stream().allMatch(game -> Objects.equals(repo, game.repo.get()))) {
       event.acceptTransferModes(TransferMode.ANY);
+    }
+  }
+
+  @FXML
+  private void onDragDropped(@NotNull DragEvent event) {
+    Dragboard db = event.getDragboard();
+    if (!db.hasContent(Game.AS_LIST)) {
+      return;
+    }
+
+    event.consume();
+
+    Path repo = getRepo();
+    //noinspection unchecked
+    List<Game> games = (List<Game>) db.getContent(Game.AS_LIST);
+    List<Game> filteredGames = games.stream()
+        .filter(game -> !Objects.equals(repo, game.repo.get()))
+        .collect(Collectors.toList());
+    if (transferEventHandler.get() != null) {
+      System.out.println("enqueue transfer");
+      transferEventHandler.get().handle(
+          new Game.TransferEvent(event.getSource(), this, Game.TransferEvent.TRANSFER));
     }
   }
 }

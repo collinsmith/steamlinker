@@ -474,4 +474,9 @@ public class MainController implements Initializable {
         })
         .orElse(null);
   }
+
+  @FXML
+  private void onTransfer(@NotNull Game.TransferEvent event) {
+    System.out.println("transfer received");
+  }
 }

@@ -32,14 +32,16 @@
       <TitledPane text="%label.libs"
                   collapsible="false">
         <ReposControl fx:id="jfxLibs"
-                      placeholder="%label.libs.empty"/>
+                      placeholder="%label.libs.empty"
+                      onTransfer="#onTransfer"/>
       </TitledPane>
       <TitledPane text="%label.repos"
                   collapsible="false"
                   VBox.vgrow="ALWAYS"
                   maxHeight="Infinity">
         <ReposControl fx:id="jfxRepos"
-                      placeholder="%label.repos.empty"/>
+                      placeholder="%label.repos.empty"
+                      onTransfer="#onTransfer"/>
       </TitledPane>
     </VBox>
   </left>

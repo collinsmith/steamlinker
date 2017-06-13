@@ -27,9 +27,12 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Task;
+import javafx.event.Event;
+import javafx.event.EventTarget;
+import javafx.event.EventType;
 import javafx.scene.input.DataFormat;
 
-class Game implements Serializable {
+public class Game implements Serializable {
 
   public static final DataFormat GAME = new DataFormat(Game.class.getName());
   public static final DataFormat AS_LIST = new DataFormat(Game.class.getName() + "-list");
@@ -214,6 +217,18 @@ class Game implements Serializable {
     @Override
     public String toString() {
       return src + "->" + dst;
+    }
+  }
+
+  public static final class TransferEvent extends Event {
+    public static final EventType<TransferEvent> TRANSFER = new EventType<>("TRANSFER");
+
+    public TransferEvent(EventType<? extends Event> eventType) {
+      super(eventType);
+    }
+
+    public TransferEvent(Object source, EventTarget target, EventType<? extends Event> eventType) {
+      super(source, target, eventType);
     }
   }
 }

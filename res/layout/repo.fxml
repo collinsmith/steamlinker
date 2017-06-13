@@ -8,7 +8,8 @@
          xmlns:fx="http://javafx.com/fxml"
          type="javafx.scene.layout.HBox"
          alignment="CENTER_LEFT"
-         onDragOver="#onDragOver">
+         onDragOver="#onDragOver"
+         onDragDropped="#onDragDropped">
   <VBox id="jfxRepo"
         HBox.hgrow="ALWAYS">
     <Label fx:id="jfxLabel"/>

@@ -17,6 +17,7 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -39,6 +40,7 @@ public class ReposControl extends HBox implements Initializable {
 
   @NotNull ObjectProperty<ObservableList<Path>> repos = new SimpleObjectProperty<>(FXCollections.observableArrayList());
   @NotNull StringProperty placeholderProperty = new SimpleStringProperty();
+  @NotNull ObjectProperty<EventHandler<? super Game.TransferEvent>> transferEventHandler = new SimpleObjectProperty<>();
 
   public ReposControl() {
     URL location = ReposControl.class.getResource("/layout/repos.fxml");
@@ -80,6 +82,7 @@ public class ReposControl extends HBox implements Initializable {
           File asFile = path.toFile();
           repo.useableSpaceProperty().set(asFile.getUsableSpace());
           repo.totalSpaceProperty().set(asFile.getTotalSpace());
+          repo.onTransferProperty().bind(transferEventHandler);
 
           setText(path.toString());
           setGraphic(repo);
@@ -138,6 +141,20 @@ public class ReposControl extends HBox implements Initializable {
   @NotNull
   public StringProperty placeholderProperty() {
     return placeholderProperty;
+  }
+
+  @Nullable
+  public EventHandler<? super Game.TransferEvent> getOnTransfer() {
+    return transferEventHandler.get();
+  }
+
+  public void setOnTransfer(@Nullable EventHandler<? super Game.TransferEvent> value) {
+    transferEventHandler.set(value);
+  }
+
+  @NotNull
+  public ObjectProperty<EventHandler<? super Game.TransferEvent>> onTransferProperty() {
+    return transferEventHandler;
   }
 
   @FXML
