@@ -169,9 +169,9 @@ public class RepoControl extends HBox implements Initializable {
         .filter(game -> !Objects.equals(repo, game.repo.get()))
         .collect(Collectors.toList());
     if (transferEventHandler.get() != null) {
-      System.out.println("enqueue transfer");
-      transferEventHandler.get().handle(
-          new Game.TransferEvent(event.getSource(), this, Game.TransferEvent.TRANSFER));
+      Game.TransferEvent transferEvent = new Game.TransferEvent(
+          event.getSource(), this, Game.TransferEvent.TRANSFER, filteredGames, repo);
+      transferEventHandler.get().handle(transferEvent);
     }
   }
 }

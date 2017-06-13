@@ -10,6 +10,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
@@ -222,13 +223,28 @@ public class Game implements Serializable {
 
   public static final class TransferEvent extends Event {
     public static final EventType<TransferEvent> TRANSFER = new EventType<>("TRANSFER");
+    final List<Game> src;
+    final Path dst;
 
-    public TransferEvent(EventType<? extends Event> eventType) {
+    public TransferEvent(EventType<? extends Event> eventType, List<Game> src, Path dst) {
       super(eventType);
+      this.src = src;
+      this.dst = dst;
     }
 
-    public TransferEvent(Object source, EventTarget target, EventType<? extends Event> eventType) {
+    public TransferEvent(Object source, EventTarget target, EventType<? extends Event> eventType,
+                         List<Game> src, Path dst) {
       super(source, target, eventType);
+      this.src = src;
+      this.dst = dst;
+    }
+
+    public List<Game> getSrc() {
+      return src;
+    }
+
+    public Path getDst() {
+      return dst;
     }
   }
 }

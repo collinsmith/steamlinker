@@ -477,6 +477,6 @@ public class MainController implements Initializable {
 
   @FXML
   private void onTransfer(@NotNull Game.TransferEvent event) {
-    System.out.println("transfer received");
+    event.src.forEach(game -> LOG.info(game.path.get() + "->" + event.getDst()));
   }
 }
