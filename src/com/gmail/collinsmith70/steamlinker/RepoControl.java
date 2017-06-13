@@ -69,6 +69,9 @@ public class RepoControl extends HBox implements Initializable {
 
   @Override
   public void initialize(URL location, ResourceBundle resources) {
+    jfxLabel.setLabelFor(this);
+    jfxLabel.textProperty().bind(repoProperty.asString());
+
     ChangeListener<Number> progressUpdater = (observable, oldValue, newValue) -> {
       long usedSpace = useableSpaceProperty.get();
       long availableSpace = totalSpaceProperty.get();

@@ -77,7 +77,6 @@ public class ReposControl extends HBox implements Initializable {
           // TODO: Configure space properties to work based off of directory watcher so they
           // update as file system changes
           RepoControl repo = new RepoControl(path);
-          repo.textProperty().bind(textProperty());
 
           File asFile = path.toFile();
           repo.useableSpaceProperty().set(asFile.getUsableSpace());
