@@ -40,6 +40,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.IndexedCell;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -273,6 +274,12 @@ public class MainController implements Initializable {
 
     setupCellValueFactory(jfxGamesSizeColumn, Game::sizeProperty);
     jfxGamesSizeColumn.setCellFactory(value -> new TableCell<Game, Number>() {
+      ProgressIndicator spinner = new ProgressIndicator();
+      {
+        spinner.prefWidthProperty().set(16);
+        spinner.prefHeightProperty().set(16);
+      }
+
       @Override
       protected void updateItem(Number item, boolean empty) {
         super.updateItem(item, empty);
@@ -281,6 +288,13 @@ public class MainController implements Initializable {
         } else {
           long value = item.longValue();
           setText(value >= 0L ? Utils.bytesToString(value) : null);
+          setGraphic(null);
+        }
+
+        TableRow<Game> row = getTableRow();
+        Game game = row.getItem();
+        if (getText() == null && game != null && !game.brokenJunction.get()) {
+          setGraphic(spinner);
         }
       }
     });
