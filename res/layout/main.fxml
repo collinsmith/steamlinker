@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?language javascript?>
 
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 <?import java.lang.Integer?>
-<?import java.lang.String?>
-<?import javafx.collections.FXCollections?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.SelectionMode?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import com.gmail.collinsmith70.steamlinker.ReposControl?>
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.gmail.collinsmith70.steamlinker.MainController"
@@ -29,13 +30,13 @@
       </BorderPane.margin>
       <TitledPane text="%label.libs"
                   collapsible="false">
-        <ListView fx:id="jfxLibs"/>
+        <ReposControl fx:id="jfxLibs"/>
       </TitledPane>
       <TitledPane text="%label.repos"
                   collapsible="false"
                   VBox.vgrow="ALWAYS"
                   maxHeight="Infinity">
-        <ListView fx:id="jfxRepos"/>
+        <ReposControl fx:id="jfxRepos"/>
       </TitledPane>
     </VBox>
   </left>

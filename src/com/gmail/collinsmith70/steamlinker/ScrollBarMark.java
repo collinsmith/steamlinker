@@ -30,7 +30,7 @@ public class ScrollBarMark {
           double pos = position.get();
           double delta = max - min;
 
-          height *= 1 - visibleAmount / delta;
+          height *= 1 - visibleAmount / height;
 
           return height * (pos - min) / delta;
         },

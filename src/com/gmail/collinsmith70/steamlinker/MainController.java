@@ -39,11 +39,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Control;
 import javafx.scene.control.IndexedCell;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -54,7 +50,6 @@ import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.image.ImageView;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
-import javafx.util.Callback;
 import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
 
@@ -70,8 +65,8 @@ public class MainController implements Initializable {
     LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
   }
 
-  @FXML private ListView<Path> jfxLibs;
-  @FXML private ListView<Path> jfxRepos;
+  @FXML private ReposControl jfxLibs;
+  @FXML private ReposControl jfxRepos;
 
   @FXML private TableView<Game> jfxGames;
   @FXML private TableColumn<Game, String> jfxGamesTitleColumn;
@@ -121,7 +116,7 @@ public class MainController implements Initializable {
             }
 
             ScrollBarMark mark = new ScrollBarMark();
-            mark.setPosition((double) i / games.size());
+            mark.setPosition((double) (i-1) / games.size());
             mark.attach(scrollBar);
             marks.add(mark);
           }
@@ -189,44 +184,11 @@ public class MainController implements Initializable {
 
   @Override
   public void initialize(URL location, ResourceBundle resources) {
-    Callback<ListView<Path>, ListCell<Path>> cellFactory = param -> new ListCell<Path>() {
-      {
-        // TODO: .subtract(2) should reference actual border width
-        prefWidthProperty().bind(jfxLibs.widthProperty().subtract(2));
-        setMaxWidth(Control.USE_PREF_SIZE);
-      }
-
-      @Override
-      protected void updateItem(Path path, boolean empty) {
-        super.updateItem(path, empty);
-        setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        if (empty) {
-          setText(null);
-          setGraphic(null);
-        } else if (path != null) {
-          // TODO: Configure space properties to work based off of directory watcher so they
-          // update as file system changes
-          RepoControl repo = new RepoControl();
-          repo.textProperty().bind(textProperty());
-
-          File asFile = path.toFile();
-          repo.useableSpaceProperty().set(asFile.getUsableSpace());
-          repo.totalSpaceProperty().set(asFile.getTotalSpace());
-
-          setText(path.toString());
-          setGraphic(repo);
-        } else {
-          setText(null);
-          setGraphic(null);
-        }
-      }
-    };
-
-    jfxLibs.setCellFactory(cellFactory);
     jfxLibs.setItems(libs);
-    jfxLibs.prefHeightProperty().bind(Bindings.max(Bindings.min(3, Bindings.size(libs)), 1).multiply(63));
+    jfxLibs.getListView().prefHeightProperty().bind(
+        Bindings.max(Bindings.min(3, Bindings.size(libs)), 1)
+            .multiply(63));
 
-    jfxRepos.setCellFactory(cellFactory);
     jfxRepos.setItems(repos);
 
     initializeColumns();

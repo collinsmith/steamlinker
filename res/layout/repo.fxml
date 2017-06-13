@@ -8,9 +8,12 @@
          xmlns:fx="http://javafx.com/fxml"
          type="javafx.scene.layout.HBox"
          alignment="CENTER_LEFT">
-  <VBox id="jfxRepo" HBox.hgrow="ALWAYS">
+  <VBox id="jfxRepo"
+        HBox.hgrow="ALWAYS">
     <Label fx:id="jfxLabel"/>
-    <ProgressBar fx:id="jfxProgressBar" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+    <ProgressBar fx:id="jfxProgressBar"
+                 HBox.hgrow="ALWAYS"
+                 maxWidth="Infinity"/>
     <Label fx:id="jfxProgressBarLabel"/>
   </VBox>
 </fx:root>

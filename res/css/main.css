@@ -41,6 +41,10 @@ BorderPane > left {
   -fx-alignment: center-right;
 }
 
+#jfxGames .table-cell {
+  -fx-alignment: center-left;
+}
+
 #jfxGames .jfxBrokenJunctionRow {
   -fx-background-color: tomato;
 }
