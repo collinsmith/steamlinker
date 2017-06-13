@@ -52,3 +52,21 @@ BorderPane > left {
 #jfxGames .jfxBrokenJunctionRow:selected {
   -fx-background-color: red;
 }
+
+.placeholder {
+  -fx-opacity: 0.5;
+}
+
+.list-view .scroll-bar:horizontal .increment-arrow,
+.list-view .scroll-bar:horizontal .decrement-arrow,
+.list-view .scroll-bar:horizontal .increment-button,
+.list-view .scroll-bar:horizontal .decrement-button {
+    -fx-padding:0;
+}
+
+#jfxLibs .list-view .scroll-bar .increment-arrow,
+#jfxLibs .list-view .scroll-bar .decrement-arrow,
+#jfxLibs .list-view .scroll-bar .increment-button,
+#jfxLibs .list-view .scroll-bar .decrement-button {
+    -fx-padding:0;
+}

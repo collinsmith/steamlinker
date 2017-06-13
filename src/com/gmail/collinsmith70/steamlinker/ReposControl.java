@@ -7,12 +7,16 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -21,14 +25,20 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Control;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MultipleSelectionModel;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
+import javafx.scene.text.Text;
+import javafx.stage.DirectoryChooser;
 
 public class ReposControl extends HBox implements Initializable {
   @FXML private ListView<Path> jfxRepos;
+  @FXML private Text jfxReposPlaceholder;
   @FXML private Button btnAddRepo;
   @FXML private Button btnRemoveRepo;
 
   @NotNull ObjectProperty<ObservableList<Path>> repos = new SimpleObjectProperty<>(FXCollections.observableArrayList());
+  @NotNull StringProperty placeholderProperty = new SimpleStringProperty();
 
   public ReposControl() {
     URL location = ReposControl.class.getResource("/layout/repos.fxml");
@@ -81,9 +91,20 @@ public class ReposControl extends HBox implements Initializable {
     });
     jfxRepos.itemsProperty().unbind();
     jfxRepos.itemsProperty().bind(repos);
-    //jfxRepos.prefHeightProperty().bind(
-    //    Bindings.max(Bindings.min(3, Bindings.size(libs)), 1)
-    //        .multiply(63));
+    jfxRepos.setOnMouseClicked(event -> {
+      if (event.getButton() == MouseButton.PRIMARY && repos.get().isEmpty()) {
+        event.consume();
+        btnAddRepo.fire();
+      }
+    });
+
+    MultipleSelectionModel<Path> selectionModel = jfxRepos.getSelectionModel();
+    selectionModel.selectedIndexProperty().addListener(((observable, oldValue, newValue) -> {
+      btnRemoveRepo.setDisable(newValue.intValue() == -1);
+    }));
+
+    jfxReposPlaceholder.textProperty().unbind();
+    jfxReposPlaceholder.textProperty().bind(placeholderProperty);
   }
 
   @NotNull
@@ -103,5 +124,44 @@ public class ReposControl extends HBox implements Initializable {
   @NotNull
   public ObjectProperty<ObservableList<Path>> itemsProperty() {
     return repos;
+  }
+
+  @Nullable
+  public String getPlaceholder() {
+    return placeholderProperty.get();
+  }
+
+  public void setPlaceholder(@Nullable String text) {
+    placeholderProperty.set(text);
+  }
+
+  @NotNull
+  public StringProperty placeholderProperty() {
+    return placeholderProperty;
+  }
+
+  @FXML
+  private void addRepo(@NotNull ActionEvent event) {
+    event.consume();
+    ObservableList<Path> repos = this.repos.get();
+    DirectoryChooser directoryChooser = new DirectoryChooser();
+    Optional.ofNullable(directoryChooser.showDialog(getScene().getWindow()))
+        .map(File::toPath)
+        .filter(path -> !repos.contains(path))
+        .ifPresent(repos::add);
+  }
+
+  @FXML
+  private void removeRepo(@NotNull ActionEvent event) {
+    event.consume();
+    ObservableList<Path> repos = this.repos.get();
+    //noinspection unchecked
+    MultipleSelectionModel<Path> selectionModel = jfxRepos.getSelectionModel();
+    repos.remove(selectionModel.getSelectedIndex());
+    selectionModel.clearSelection();
+  }
+
+  public void fireAddRepo() {
+    btnAddRepo.fire();
   }
 }

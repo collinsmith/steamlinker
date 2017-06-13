@@ -36,6 +36,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -49,6 +50,11 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.TransferMode;
+import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
@@ -217,7 +223,30 @@ public class MainController implements Initializable {
           }
         }
       };
+      row.setOnDragDetected(event -> {
+        event.consume();
+        List<Game> selectedItems = jfxGames.getSelectionModel().getSelectedItems();
+        if (selectedItems.isEmpty()) {
+          return;
+        }
+
+        SnapshotParameters params = new SnapshotParameters();
+        params.setFill(Color.TRANSPARENT);
+
+        ClipboardContent content = new ClipboardContent();
+        content.put(Game.AS_LIST, selectedItems);
+
+        Dragboard db = jfxGames.startDragAndDrop(TransferMode.ANY);
+        db.setDragView(row.snapshot(params, null));
+        db.setContent(content);
+      });
       return row;
+    });
+    jfxGames.setOnMouseClicked(event -> {
+      if (event.getButton() == MouseButton.PRIMARY && games.isEmpty()) {
+        event.consume();
+        jfxLibs.fireAddRepo();
+      }
     });
   }
 
@@ -299,9 +328,9 @@ public class MainController implements Initializable {
       }
     });
 
-    jfxGamesTitleColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.375));
+    jfxGamesTitleColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.35));
     jfxGamesPathColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.5));
-    jfxGamesSizeColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.125).subtract(15));
+    jfxGamesSizeColumn.prefWidthProperty().bind(jfxGames.widthProperty().multiply(0.15).subtract(15));
   }
 
   private static <T> void setupCellValueFactory(@NotNull TableColumn<Game, T> column, @NotNull Function<Game, ObservableValue<T>> mapper) {

@@ -13,6 +13,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import com.gmail.collinsmith70.steamlinker.ReposControl?>
+<?import javafx.scene.text.Text?>
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.gmail.collinsmith70.steamlinker.MainController"
@@ -24,24 +25,29 @@
     <Integer fx:id="CONTENT_SPACING" fx:value="8"/>
   </fx:define>
   <left>
-    <VBox>
+    <VBox prefWidth="196">
       <BorderPane.margin>
         <Insets right="$CONTENT_SPACING"/>
       </BorderPane.margin>
       <TitledPane text="%label.libs"
                   collapsible="false">
-        <ReposControl fx:id="jfxLibs"/>
+        <ReposControl fx:id="jfxLibs"
+                      placeholder="%label.libs.empty"/>
       </TitledPane>
       <TitledPane text="%label.repos"
                   collapsible="false"
                   VBox.vgrow="ALWAYS"
                   maxHeight="Infinity">
-        <ReposControl fx:id="jfxRepos"/>
+        <ReposControl fx:id="jfxRepos"
+                      placeholder="%label.repos.empty"/>
       </TitledPane>
     </VBox>
   </left>
   <center>
     <TableView fx:id="jfxGames">
+      <fx:script>
+        jfxGames.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
+      </fx:script>
       <columns>
         <TableColumn fx:id="jfxGamesTitleColumn"
                      text="%game.title"/>
@@ -50,9 +56,11 @@
         <TableColumn fx:id="jfxGamesSizeColumn"
                      text="%game.size"/>
       </columns>
-      <fx:script>
-        jfxGames.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
-      </fx:script>
+      <placeholder>
+        <Text id="placeholder"
+              text="%label.games.empty"
+              textAlignment="CENTER"/>
+      </placeholder>
     </TableView>
   </center>
 </BorderPane>

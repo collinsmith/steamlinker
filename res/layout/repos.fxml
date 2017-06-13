@@ -6,14 +6,17 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Text?>
 <fx:root xmlns="http://javafx.com/javafx"
          xmlns:fx="http://javafx.com/fxml"
-         type="javafx.scene.layout.HBox">
+         type="javafx.scene.layout.HBox"
+         minHeight="0">
   <padding>
     <Insets/>
   </padding>
   <VBox style="-fx-border-color: -fx-box-border;">
     <Button fx:id="btnAddRepo"
+            onAction="#addRepo"
             contentDisplay="GRAPHIC_ONLY"
             mnemonicParsing="false"
             style="-fx-padding: 2px;">
@@ -22,6 +25,7 @@
       </graphic>
     </Button>
     <Button fx:id="btnRemoveRepo"
+            onAction="#removeRepo"
             contentDisplay="GRAPHIC_ONLY"
             mnemonicParsing="false"
             style="-fx-padding: 2px;"
@@ -31,5 +35,12 @@
       </graphic>
     </Button>
   </VBox>
-  <ListView fx:id="jfxRepos"/>
+  <ListView fx:id="jfxRepos"
+            HBox.hgrow="ALWAYS">
+    <placeholder>
+      <Text fx:id="jfxReposPlaceholder"
+            id="placeholder"
+            textAlignment="CENTER"/>
+    </placeholder>
+  </ListView>
 </fx:root>
