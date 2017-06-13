@@ -15,20 +15,20 @@
     <Insets/>
   </padding>
   <VBox style="-fx-border-color: -fx-box-border;">
-    <Button fx:id="btnAddRepo"
+    <Button id="material-button"
+            fx:id="btnAddRepo"
             onAction="#addRepo"
             contentDisplay="GRAPHIC_ONLY"
-            mnemonicParsing="false"
-            style="-fx-padding: 2px;">
+            mnemonicParsing="false">
       <graphic>
         <FontIcon iconLiteral="gmi-add:20:green"/>
       </graphic>
     </Button>
-    <Button fx:id="btnRemoveRepo"
+    <Button id="material-button"
+            fx:id="btnRemoveRepo"
             onAction="#removeRepo"
             contentDisplay="GRAPHIC_ONLY"
             mnemonicParsing="false"
-            style="-fx-padding: 2px;"
             disable="true">
       <graphic>
         <FontIcon iconLiteral="gmi-remove:20:red"/>

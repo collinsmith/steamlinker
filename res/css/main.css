@@ -70,3 +70,11 @@ BorderPane > left {
 #jfxLibs .list-view .scroll-bar .decrement-button {
     -fx-padding:0;
 }
+
+#material-button {
+  -fx-padding: 2px;
+}
+
+#material-progressbar .bar {
+  -fx-padding: 10px;
+}

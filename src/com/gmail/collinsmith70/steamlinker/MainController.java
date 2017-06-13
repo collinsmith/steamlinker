@@ -13,9 +13,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -58,10 +56,11 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
-import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
 
 import static com.gmail.collinsmith70.steamlinker.Main.PREFERENCES;
+import static com.gmail.collinsmith70.steamlinker.Utils.PATHS_CONVERTER;
+import static com.gmail.collinsmith70.steamlinker.Utils.PATH_CONVERTER;
 
 public class MainController implements Initializable {
   private static final boolean DEBUG_PROPERTY_CHANGES = Main.DEBUG_MODE && true;
@@ -75,6 +74,7 @@ public class MainController implements Initializable {
 
   @FXML private ReposControl jfxLibs;
   @FXML private ReposControl jfxRepos;
+  @FXML private TransfersControl jfxTransfers;
 
   @FXML private TableView<Game> jfxGames;
   @FXML private TableColumn<Game, String> jfxGamesTitleColumn;
@@ -152,40 +152,7 @@ public class MainController implements Initializable {
   }
   private final ListProperty<Path> libs = new SimpleListProperty<>(FXCollections.observableArrayList());
   private final ListProperty<Path> repos = new SimpleListProperty<>(FXCollections.observableArrayList());
-  private static final StringConverter<ObservableList<Path>> PATHS_CONVERTER = new StringConverter<ObservableList<Path>>() {
-    @Override
-    @NotNull
-    public String toString(@Nullable ObservableList<Path> paths) {
-      return paths != null
-          ? String.join(";", paths.stream()
-            .map(Path::toString)
-            .collect(Collectors.joining(";")))
-          : "";
-    }
-
-    @Override
-    @NotNull
-    public ObservableList<Path> fromString(@Nullable String string) {
-      return string != null && !string.isEmpty()
-          ? FXCollections.observableList(Arrays.stream(string.split(";"))
-              .map(item -> Paths.get(item))
-              .collect(Collectors.toList()))
-          : FXCollections.observableArrayList();
-    }
-  };
-  private static final StringConverter<Path> PATH_CONVERTER = new StringConverter<Path>() {
-    @Override
-    @NotNull
-    public String toString(@Nullable Path path) {
-      return path != null ? path.toString() : "";
-    }
-
-    @Override
-    @Nullable
-    public Path fromString(@Nullable String string) {
-      return string != null && !string.isEmpty() ? Paths.get(string) : null;
-    }
-  };
+  private final ListProperty<Game.Transfer> transfers = new SimpleListProperty<>(FXCollections.observableArrayList());
 
   private Window window;
   private Scene scene;
@@ -250,6 +217,9 @@ public class MainController implements Initializable {
         jfxLibs.fireAddRepo();
       }
     });
+
+    jfxTransfers.libsProperty().bind(libs);
+    jfxTransfers.setItems(transfers);
   }
 
   @SuppressWarnings("unchecked")
@@ -299,7 +269,7 @@ public class MainController implements Initializable {
       @Override
       protected void updateItem(Path item, boolean empty) {
         super.updateItem(item, empty);
-        updateRepoItem(this, libs, item, empty);
+        configureRepoCell(this, libs, item, empty);
       }
     });
 
@@ -339,7 +309,7 @@ public class MainController implements Initializable {
     column.setCellValueFactory(param -> mapper.apply(param.getValue()));
   }
 
-  public static void updateRepoItem(@NotNull IndexedCell<Path> cell, @NotNull ObservableList<Path> libs, Path item, boolean empty) {
+  public static void configureRepoCell(@NotNull IndexedCell<Path> cell, @NotNull ObservableList<Path> libs, Path item, boolean empty) {
     if (empty || item == null) {
       cell.setGraphic(null);
       cell.setText(null);
@@ -478,5 +448,9 @@ public class MainController implements Initializable {
   @FXML
   private void onTransfer(@NotNull Game.TransferEvent event) {
     event.src.forEach(game -> LOG.info(game.path.get() + "->" + event.getDst()));
+    event.src.forEach(game -> {
+      Game.Transfer transfer = game.createTransfer(event.dst);
+      transfers.add(transfer);
+    });
   }
 }

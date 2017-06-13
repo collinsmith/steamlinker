@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Text?>
+<fx:root xmlns="http://javafx.com/javafx"
+         xmlns:fx="http://javafx.com/fxml"
+         type="javafx.scene.layout.HBox"
+         prefWidth="640" prefHeight="128">
+  <VBox style="-fx-border-color: -fx-box-border;">
+    <Button id="material-button"
+            contentDisplay="GRAPHIC_ONLY"
+            mnemonicParsing="false"
+            disable="true">
+      <graphic>
+        <FontIcon iconLiteral="gmi-refresh:20:dimgray"/>
+      </graphic>
+    </Button>
+    <ToggleButton id="material-button"
+                  fx:id="btnPerformTransfers"
+                  contentDisplay="GRAPHIC_ONLY"
+                  mnemonicParsing="false"
+                  selected="true">
+      <graphic>
+        <FontIcon iconLiteral="gmi-play-arrow:20:seagreen"/>
+      </graphic>
+    </ToggleButton>
+    <Button id="material-button"
+            fx:id="btnRemoveTransfer"
+            contentDisplay="GRAPHIC_ONLY"
+            mnemonicParsing="false">
+      <graphic>
+        <FontIcon iconLiteral="gmi-close:20:red"/>
+      </graphic>
+    </Button>
+    <Button id="material-button"
+            fx:id="btnClearTransfers"
+            contentDisplay="GRAPHIC_ONLY"
+            mnemonicParsing="false">
+      <graphic>
+        <FontIcon iconLiteral="gmi-delete-sweep:20:dimgray"/>
+      </graphic>
+    </Button>
+  </VBox>
+  <TableView fx:id="jfxTransfers"
+             HBox.hgrow="ALWAYS">
+    <columns>
+      <TableColumn fx:id="jfxTransfersTitleColumn"
+                   text="%game.title"/>
+      <TableColumn fx:id="jfxTransfersProgressColumn"
+                   text="%transfer.progress"/>
+      <TableColumn fx:id="jfxTransfersSourceColumn"
+                   text="%transfer.source"/>
+      <TableColumn fx:id="jfxTransfersDestinationColumn"
+                   text="%transfer.destination"/>
+    </columns>
+    <placeholder>
+      <Text text="%transfers.empty"
+            textAlignment="CENTER"/>
+    </placeholder>
+  </TableView>
+</fx:root>

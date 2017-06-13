@@ -11,18 +11,58 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextArea;
 import javafx.stage.Window;
+import javafx.util.StringConverter;
 
 public class Utils {
 
   private Utils() {}
 
+  public static final StringConverter<ObservableList<Path>> PATHS_CONVERTER = new
+      StringConverter<ObservableList<Path>>() {
+    @Override
+    @NotNull
+    public String toString(@Nullable ObservableList<Path> paths) {
+      return paths != null
+          ? String.join(";", paths.stream()
+          .map(Path::toString)
+          .collect(Collectors.joining(";")))
+          : "";
+    }
+
+    @Override
+    @NotNull
+    public ObservableList<Path> fromString(@Nullable String string) {
+      return string != null && !string.isEmpty()
+          ? FXCollections.observableList(Arrays.stream(string.split(";"))
+          .map(item -> Paths.get(item))
+          .collect(Collectors.toList()))
+          : FXCollections.observableArrayList();
+    }
+  };
+  public static final StringConverter<Path> PATH_CONVERTER = new StringConverter<Path>() {
+    @Override
+    @NotNull
+    public String toString(@Nullable Path path) {
+      return path != null ? path.toString() : "";
+    }
+
+    @Override
+    @Nullable
+    public Path fromString(@Nullable String string) {
+      return string != null && !string.isEmpty() ? Paths.get(string) : null;
+    }
+  };
 
   @NotNull
   public static Alert newExceptionAlert(@NotNull Throwable throwable) {

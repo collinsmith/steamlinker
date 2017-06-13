@@ -14,12 +14,13 @@
 <?import javafx.scene.layout.VBox?>
 <?import com.gmail.collinsmith70.steamlinker.ReposControl?>
 <?import javafx.scene.text.Text?>
+<?import com.gmail.collinsmith70.steamlinker.TransfersControl?>
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.gmail.collinsmith70.steamlinker.MainController"
             minWidth="640" minHeight="480"
             maxWidth="Infinity" maxHeight="Infinity"
-            prefWidth="800" prefHeight="600"
+            prefWidth="1280" prefHeight="720"
             stylesheets="@../css/main.css">
   <fx:define>
     <Integer fx:id="CONTENT_SPACING" fx:value="8"/>
@@ -65,4 +66,11 @@
       </placeholder>
     </TableView>
   </center>
+  <bottom>
+    <TransfersControl fx:id="jfxTransfers">
+      <BorderPane.margin>
+        <Insets top="$CONTENT_SPACING"/>
+      </BorderPane.margin>
+    </TransfersControl>
+  </bottom>
 </BorderPane>
