@@ -1,13 +1,22 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -167,6 +176,10 @@ public class Game implements Serializable {
   }
 
   final class Transfer extends Task {
+    private static final boolean DONT_COPY = true;
+
+    private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
+
     @NotNull final Game game;
 
     @NotNull final ReadOnlyObjectProperty<Path> src;
@@ -174,16 +187,29 @@ public class Game implements Serializable {
     @NotNull final ReadOnlyObjectProperty<Path> dst;
     @NotNull final ReadOnlyObjectProperty<Path> dstRepo;
 
-    private Transfer(@NotNull Path dst) {
+    private long bytesCopied;
+    private long totalBytes;
+
+    private Transfer(@NotNull Path dstDir) {
       this.game = Game.this;
       this.src = createReadOnlyWrapper(() -> game.path.get(), game.path);
       this.srcRepo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(this.src.get()), this.src);
-      this.dst = new ReadOnlyObjectWrapper<>(dst);
-      this.dstRepo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(this.dst.get()), this.dst);
+      this.dstRepo = new ReadOnlyObjectWrapper<>(dstDir);
+      this.dst = createReadOnlyWrapper(() -> this.dstRepo.get().resolve(PATH_TO_FOLDER.apply(this.src.get())), this.dstRepo);
     }
 
     @Override
     protected Object call() throws Exception {
+      File src = this.src.get().toFile();
+      totalBytes = FileUtils.sizeOfDirectory(src);
+      updateProgress(bytesCopied, totalBytes);
+      if (DONT_COPY || Files.isDirectory(dst.get())) {
+        bytesCopied = totalBytes;
+        updateProgress(bytesCopied, totalBytes);
+      } else {
+        File dstDir = dstRepo.get().toFile();
+        copyDirectoryToDirectory(src, dstDir);
+      }
 
       return null;
     }
@@ -219,32 +245,145 @@ public class Game implements Serializable {
     public String toString() {
       return src + "->" + dst;
     }
+
+    public void copyDirectoryToDirectory(@NotNull File srcDir, @NotNull File destDir) throws IOException {
+      if (srcDir == null) {
+        throw new NullPointerException("Source must not be null");
+      }
+      if (srcDir.exists() && !srcDir.isDirectory()) {
+        throw new IllegalArgumentException("Source '" + destDir + "' is not a directory");
+      }
+      if (destDir == null) {
+        throw new NullPointerException("Destination must not be null");
+      }
+      if (destDir.exists() && !destDir.isDirectory()) {
+        throw new IllegalArgumentException("Destination '" + destDir + "' is not a directory");
+      }
+      copyDirectory(srcDir, new File(destDir, srcDir.getName()), true);
+    }
+
+    public void copyDirectory(@NotNull File srcDir, @NotNull File destDir, boolean preserveFileDate) throws IOException {
+      if (srcDir == null) {
+        throw new NullPointerException("Source must not be null");
+      }
+      if (destDir == null) {
+        throw new NullPointerException("Destination must not be null");
+      }
+      if (!srcDir.exists()) {
+        throw new FileNotFoundException("Source '" + srcDir + "' does not exist");
+      }
+      if (!srcDir.isDirectory()) {
+        throw new IOException("Source '" + srcDir + "' exists but is not a directory");
+      }
+      if (srcDir.getCanonicalPath().equals(destDir.getCanonicalPath())) {
+        throw new IOException("Source '" + srcDir + "' and destination '" + destDir + "' are the same");
+      }
+      doCopyDirectory(srcDir, destDir, preserveFileDate);
+    }
+
+    private void doCopyDirectory(@NotNull File srcDir, @NotNull File destDir, boolean preserveFileDate) throws IOException {
+      if (destDir.exists()) {
+        if (!destDir.isDirectory()) {
+          throw new IOException("Destination '" + destDir + "' exists but is not a directory");
+        }
+      } else {
+        if (!destDir.mkdirs()) {
+          throw new IOException("Destination '" + destDir + "' directory cannot be created");
+        }
+        if (preserveFileDate) {
+          destDir.setLastModified(srcDir.lastModified());
+        }
+      }
+      if (!destDir.canWrite()) {
+        throw new IOException("Destination '" + destDir + "' cannot be written to");
+      }
+      // recurse
+      File[] files = srcDir.listFiles();
+      if (files == null) {  // null if security restricted
+        throw new IOException("Failed to list contents of " + srcDir);
+      }
+      for (int i = 0; i < files.length && !isCancelled(); i++) {
+        File copiedFile = new File(destDir, files[i].getName());
+        if (files[i].isDirectory()) {
+          doCopyDirectory(files[i], copiedFile, preserveFileDate);
+        } else {
+          doCopyFile(files[i], copiedFile, preserveFileDate);
+          // TODO: perform a checksum on the copied file and the source file if desired
+        }
+      }
+    }
+
+    private void doCopyFile(@NotNull File srcFile, @NotNull File destFile, boolean preserveFileDate) throws IOException {
+      if (destFile.exists() && destFile.isDirectory()) {
+        throw new IOException("Destination '" + destFile + "' exists but is a directory");
+      }
+
+      FileInputStream input = new FileInputStream(srcFile);
+      try {
+        FileOutputStream output = new FileOutputStream(destFile);
+        try {
+          copy(input, output);
+        } finally {
+          IOUtils.closeQuietly(output);
+        }
+      } finally {
+        IOUtils.closeQuietly(input);
+      }
+
+      if (srcFile.length() != destFile.length()) {
+        throw new IOException("Failed to copy full contents from '" +
+            srcFile + "' to '" + destFile + "'");
+      }
+      if (preserveFileDate) {
+        destFile.setLastModified(srcFile.lastModified());
+      }
+    }
+
+    public int copy(@NotNull InputStream input, @NotNull OutputStream output) throws IOException {
+      long count = copyLarge(input, output);
+      if (count > Integer.MAX_VALUE) {
+        return -1;
+      }
+      return (int) count;
+    }
+
+    public long copyLarge(@NotNull InputStream input, @NotNull OutputStream output) throws IOException {
+      byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+      long count = 0;
+      int n = 0;
+      while (!isCancelled() && -1 != (n = input.read(buffer))) {
+        updateProgress(bytesCopied += n, totalBytes);
+        output.write(buffer, 0, n);
+        count += n;
+      }
+      return count;
+    }
   }
 
   public static final class TransferEvent extends Event {
     public static final EventType<TransferEvent> TRANSFER = new EventType<>("TRANSFER");
-    final List<Game> src;
-    final Path dst;
+    final List<Game> games;
+    final Path dstRepo;
 
-    public TransferEvent(EventType<? extends Event> eventType, List<Game> src, Path dst) {
+    public TransferEvent(EventType<? extends Event> eventType, List<Game> games, Path dstRepo) {
       super(eventType);
-      this.src = src;
-      this.dst = dst;
+      this.games = games;
+      this.dstRepo = dstRepo;
     }
 
     public TransferEvent(Object source, EventTarget target, EventType<? extends Event> eventType,
-                         List<Game> src, Path dst) {
+                         List<Game> games, Path dstRepo) {
       super(source, target, eventType);
-      this.src = src;
-      this.dst = dst;
+      this.games = games;
+      this.dstRepo = dstRepo;
     }
 
-    public List<Game> getSrc() {
-      return src;
+    public List<Game> getGames() {
+      return games;
     }
 
-    public Path getDst() {
-      return dst;
+    public Path getDstRepo() {
+      return dstRepo;
     }
   }
 }

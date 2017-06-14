@@ -1,6 +1,7 @@
 .root {
   -repo-color-available: #0094c5;
   -repo-color-limited:   #d00000;
+  -progressbar-color: limegreen;
 }
 
 BorderPane {
@@ -76,5 +77,7 @@ BorderPane > left {
 }
 
 #material-progressbar .bar {
+  -fx-accent: -progressbar-color;
+  -fx-background-color: linear-gradient(to bottom, derive(-fx-accent, -7%), derive(-fx-accent, 0%), derive(-fx-accent, -3%), derive(-fx-accent, -9%) );
   -fx-padding: 10px;
 }

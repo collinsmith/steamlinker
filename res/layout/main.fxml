@@ -20,7 +20,7 @@
             fx:controller="com.gmail.collinsmith70.steamlinker.MainController"
             minWidth="640" minHeight="480"
             maxWidth="Infinity" maxHeight="Infinity"
-            prefWidth="1280" prefHeight="720"
+            prefWidth="960" prefHeight="720"
             stylesheets="@../css/main.css">
   <fx:define>
     <Integer fx:id="CONTENT_SPACING" fx:value="8"/>

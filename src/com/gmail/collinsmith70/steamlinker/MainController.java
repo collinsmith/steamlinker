@@ -1,5 +1,7 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import com.google.common.collect.Sets;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
@@ -13,10 +15,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.prefs.Preferences;
@@ -65,6 +67,7 @@ import static com.gmail.collinsmith70.steamlinker.Utils.PATH_CONVERTER;
 public class MainController implements Initializable {
   private static final boolean DEBUG_PROPERTY_CHANGES = Main.DEBUG_MODE && true;
   private static final boolean DEBUG_STEAM_NOT_FOUND = Main.DEBUG_MODE && false;
+  private static final boolean DEBUG_AUTO_ADD_REPOS = Main.DEBUG_MODE && true;
 
   private static final Logger LOG = Logger.getLogger(MainController.class);
   static {
@@ -199,11 +202,18 @@ public class MainController implements Initializable {
           return;
         }
 
+        List<Game> serializableList = selectedItems.stream()
+            .filter(game -> !game.brokenJunction.get())
+            .collect(Collectors.toList());
+        if (serializableList.isEmpty()) {
+          return;
+        }
+
         SnapshotParameters params = new SnapshotParameters();
         params.setFill(Color.TRANSPARENT);
 
         ClipboardContent content = new ClipboardContent();
-        content.put(Game.AS_LIST, new ArrayList<>(selectedItems));
+        content.put(Game.AS_LIST, serializableList);
 
         Dragboard db = jfxGames.startDragAndDrop(TransferMode.ANY);
         db.setDragView(row.snapshot(params, null));
@@ -376,6 +386,26 @@ public class MainController implements Initializable {
           Task<List<Game>> task = (Task<List<Game>>) event.getSource();
           List<Game> games = task.getValue();
           this.games.addAll(games);
+
+          if (DEBUG_AUTO_ADD_REPOS) {
+            LOG.info("automatically adding repositories...");
+          }
+
+          Set<Path> repos = Sets.newHashSet(this.repos.get());
+          games.stream()
+              .map(game -> game.repo.get())
+              .filter(path -> !libs.contains(path))
+              .forEach(junction -> {
+                try {
+                  repos.add(junction.toRealPath());
+                } catch (IOException e) {
+                  LOG.error(e.getMessage(), e);
+                }
+              });
+
+          if (this.repos.size() < repos.size()) {
+            this.repos.set(FXCollections.observableArrayList(repos));
+          }
         });
         new Thread(addGamesTask).start();
       }
@@ -447,10 +477,36 @@ public class MainController implements Initializable {
 
   @FXML
   private void onTransfer(@NotNull Game.TransferEvent event) {
-    event.src.forEach(game -> LOG.info(game.path.get() + "->" + event.getDst()));
-    event.src.forEach(game -> {
-      Game.Transfer transfer = game.createTransfer(event.dst);
+    event.games.forEach(game -> LOG.info(game.path.get() + "->" + event.dstRepo));
+    event.games.forEach(game -> {
+      Game.Transfer transfer = game.createTransfer(event.dstRepo);
       transfers.add(transfer);
+      // TODO: specific implementation for repo to repo (replace existing links) and lib to lib (copy with no linking)
+      if (libs.contains(transfer.dstRepo.get()) && libs.contains(transfer.srcRepo.get())) {
+        Utils.newExceptionAlert(window, new UnsupportedOperationException("Cannot transfer games from one Steam Library to another yet!"))
+            .show();
+        return;
+      } else if (repos.contains(transfer.dstRepo.get()) && repos.contains(transfer.srcRepo.get())) {
+        Utils.newExceptionAlert(window, new UnsupportedOperationException("Cannot transfer games from one repository to another yet!"))
+            .show();
+        return;
+      }
+
+      if (libs.contains(transfer.dstRepo.get())) {
+        transfer.setOnSucceeded(onSucceeded -> {
+          boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
+          if (!keepOriginal) {
+            // TODO: delete original
+            LOG.info("deleting " + transfer.src.get());
+          }
+        });
+      } else if (Files.isDirectory(transfer.dst.get())) {
+        LOG.info(transfer.dst.get() + " already exists, deleting " + transfer.src.get() + " and creating link");
+        LOG.info(transfer.src.get() + "<--->" + transfer.dst.get());
+      } else {
+        LOG.info(transfer.src.get() + "<--->" + transfer.dst.get());
+      }
+      new Thread(transfer).start();
     });
   }
 }

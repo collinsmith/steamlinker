@@ -11,7 +11,7 @@
 <fx:root xmlns="http://javafx.com/javafx"
          xmlns:fx="http://javafx.com/fxml"
          type="javafx.scene.layout.HBox"
-         prefWidth="640" prefHeight="128">
+         prefWidth="640" prefHeight="160">
   <VBox style="-fx-border-color: -fx-box-border;">
     <Button id="material-button"
             contentDisplay="GRAPHIC_ONLY"

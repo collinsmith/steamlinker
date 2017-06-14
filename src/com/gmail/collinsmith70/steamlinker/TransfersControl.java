@@ -91,7 +91,7 @@ public class TransfersControl extends HBox implements Initializable {
     });
     jfxTransfersSourceColumn.setStyle("-fx-alignment: CENTER-LEFT;");
     //jfxTransfersSourceColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
-    jfxTransfersSourceColumn.setCellValueFactory(param -> param.getValue().src);
+    jfxTransfersSourceColumn.setCellValueFactory(param -> param.getValue().srcRepo);
 
     jfxTransfersDestinationColumn.setCellFactory(param -> new TableCell<Transfer, Path>() {
       @Override
@@ -102,7 +102,7 @@ public class TransfersControl extends HBox implements Initializable {
     });
     jfxTransfersDestinationColumn.setStyle("-fx-alignment: CENTER-LEFT;");
     //jfxTransfersDestinationColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
-    jfxTransfersDestinationColumn.setCellValueFactory(param -> param.getValue().dst);
+    jfxTransfersDestinationColumn.setCellValueFactory(param -> param.getValue().dstRepo);
 
     jfxTransfersTitleColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.375).subtract(15));
     jfxTransfersProgressColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.125));
