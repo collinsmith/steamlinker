@@ -496,17 +496,42 @@ public class MainController implements Initializable {
         transfer.setOnSucceeded(onSucceeded -> {
           boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
           if (!keepOriginal) {
-            // TODO: delete original
-            LOG.info("deleting " + transfer.src.get());
+            tryDelete(transfer.src.get());
           }
         });
-      } else if (Files.isDirectory(transfer.dst.get())) {
-        LOG.info(transfer.dst.get() + " already exists, deleting " + transfer.src.get() + " and creating link");
-        LOG.info(transfer.src.get() + "<--->" + transfer.dst.get());
       } else {
-        LOG.info(transfer.src.get() + "<--->" + transfer.dst.get());
+        transfer.setOnSucceeded(onSucceeded -> {
+          if (Files.isDirectory(transfer.dst.get())) {
+            LOG.info(transfer.dst.get() + " already exists, deleting " + transfer.src.get() + " and creating link");
+          }
+
+          createJunction(transfer.src.get(), transfer.dst.get());
+        });
       }
       new Thread(transfer).start();
     });
+  }
+
+  private void createJunction(@NotNull Path path, @NotNull Path target) {
+    try {
+      //Utils.createJunction(path, target);
+      LOG.info(path + "<--->" + target);
+      if (false) throw new IOException();
+    } catch (IOException e) {
+      LOG.error(e.getMessage(), e);
+      Utils.newExceptionAlert(window, e).show();
+    }
+  }
+
+  private void tryDelete(@NotNull Path dir) {
+    assert Files.isDirectory(dir);
+    try {
+      LOG.info("deleting " + dir);
+      //FileUtils.deleteDirectory(dir.toFile());
+      if (false) throw new IOException();
+    } catch (IOException e) {
+      LOG.error(e.getMessage(), e);
+      Utils.newExceptionAlert(window, e).show();
+    }
   }
 }

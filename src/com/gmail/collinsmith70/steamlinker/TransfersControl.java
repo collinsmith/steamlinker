@@ -24,12 +24,14 @@ import javafx.scene.control.TableView;
 import javafx.scene.layout.HBox;
 
 public class TransfersControl extends HBox implements Initializable {
+  private static final boolean DEBUG_TRANSFERS = Main.DEBUG_MODE && true;
 
   @FXML private TableView<Transfer> jfxTransfers;
   @FXML private TableColumn<Transfer, String> jfxTransfersTitleColumn;
   @FXML private TableColumn<Transfer, Double> jfxTransfersProgressColumn;
   @FXML private TableColumn<Transfer, Path> jfxTransfersSourceColumn;
   @FXML private TableColumn<Transfer, Path> jfxTransfersDestinationColumn;
+  @FXML private TableColumn<Transfer, String> jfxTransfersStatusColumn;
 
   @NotNull ObjectProperty<ObservableList<Transfer>> transfers = new SimpleObjectProperty<>(FXCollections.observableArrayList());
   @NotNull ObjectProperty<ObservableList<Path>> libs = new SimpleObjectProperty<>(FXCollections.emptyObservableList());
@@ -51,6 +53,7 @@ public class TransfersControl extends HBox implements Initializable {
 
   @Override
   public void initialize(URL location, ResourceBundle resources) {
+    jfxTransfers.setTableMenuButtonVisible(true);
     jfxTransfers.itemsProperty().unbind();
     jfxTransfers.itemsProperty().bind(transfers);
 
@@ -104,10 +107,16 @@ public class TransfersControl extends HBox implements Initializable {
     //jfxTransfersDestinationColumn.setStyle("-fx-text-overrun: LEADING-ELLIPSIS;");
     jfxTransfersDestinationColumn.setCellValueFactory(param -> param.getValue().dstRepo);
 
-    jfxTransfersTitleColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.375).subtract(15));
+    jfxTransfersStatusColumn.setCellValueFactory(param -> param.getValue().status);
+    if (!DEBUG_TRANSFERS) {
+      jfxTransfersStatusColumn.setVisible(false);
+    }
+
+    jfxTransfersTitleColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.25).subtract(15));
     jfxTransfersProgressColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.125));
     jfxTransfersSourceColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.25));
     jfxTransfersDestinationColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.25));
+    jfxTransfersStatusColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.125));
   }
 
   public void setItems(@Nullable ObservableList<Transfer> items) {

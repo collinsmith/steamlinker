@@ -58,6 +58,8 @@
                    text="%transfer.source"/>
       <TableColumn fx:id="jfxTransfersDestinationColumn"
                    text="%transfer.destination"/>
+      <TableColumn fx:id="jfxTransfersStatusColumn"
+                   text="%transfer.status"/>
     </columns>
     <placeholder>
       <Text text="%transfers.empty"

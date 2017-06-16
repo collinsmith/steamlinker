@@ -6,6 +6,9 @@ import com.sun.jna.WString;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,6 +32,13 @@ import javafx.stage.Window;
 import javafx.util.StringConverter;
 
 public class Utils {
+  private static final boolean DEBUG_JUNCTION_CREATION = Main.DEBUG_MODE && true;
+
+  private static final Logger LOG = Logger.getLogger(Utils.class);
+  static {
+    PatternLayout layout = new PatternLayout("[%-5p] %c::%M - %m%n");
+    LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
+  }
 
   private Utils() {}
 
@@ -189,5 +199,24 @@ public class Utils {
     }
 
     return ((0x400 & attributes) != 0);
+  }
+
+  public static void createJunction(@NotNull Path path, @NotNull Path target) throws IOException {
+    ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "mklink", "/J", path.toString(), target.toString());
+    builder.redirectErrorStream(true);
+    try {
+      Process p = builder.start();
+      if (DEBUG_JUNCTION_CREATION) {
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+          String line;
+          while ((line = r.readLine()) != null) {
+            LOG.info(line);
+          }
+        }
+      }
+    } catch (IOException e) {
+      LOG.error(e.getMessage(), e);
+      throw e;
+    }
   }
 }

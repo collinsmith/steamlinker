@@ -31,6 +31,7 @@ import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -186,6 +187,7 @@ public class Game implements Serializable {
     @NotNull final ReadOnlyObjectProperty<Path> srcRepo;
     @NotNull final ReadOnlyObjectProperty<Path> dst;
     @NotNull final ReadOnlyObjectProperty<Path> dstRepo;
+    @NotNull final ReadOnlyStringProperty status;
 
     private long bytesCopied;
     private long totalBytes;
@@ -196,21 +198,24 @@ public class Game implements Serializable {
       this.srcRepo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(this.src.get()), this.src);
       this.dstRepo = new ReadOnlyObjectWrapper<>(dstDir);
       this.dst = createReadOnlyWrapper(() -> this.dstRepo.get().resolve(PATH_TO_FOLDER.apply(this.src.get())), this.dstRepo);
+      this.status = new SimpleStringProperty("initializing");
     }
 
     @Override
     protected Object call() throws Exception {
+      ((StringProperty) status).set("sizing");
       File src = this.src.get().toFile();
       totalBytes = FileUtils.sizeOfDirectory(src);
       updateProgress(bytesCopied, totalBytes);
+      ((StringProperty) status).set("copying");
       if (DONT_COPY || Files.isDirectory(dst.get())) {
         bytesCopied = totalBytes;
         updateProgress(bytesCopied, totalBytes);
       } else {
-        File dstDir = dstRepo.get().toFile();
-        copyDirectoryToDirectory(src, dstDir);
+        copyDirectoryToDirectory(src, dstRepo.get().toFile());
       }
 
+      ((StringProperty) status).set("complete");
       return null;
     }
 
