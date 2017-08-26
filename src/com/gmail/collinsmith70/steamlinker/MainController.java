@@ -492,6 +492,10 @@ public class MainController implements Initializable {
         return;
       }
 
+      transfer.setOnFailed(onFailed -> {
+        Throwable throwable = transfer.getException();
+        LOG.error(throwable.getMessage(), throwable);
+      });
       if (libs.contains(transfer.dstRepo.get())) {
         transfer.setOnSucceeded(onSucceeded -> {
           boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);

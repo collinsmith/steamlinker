@@ -199,6 +199,7 @@ public class Game implements Serializable {
       this.dstRepo = new ReadOnlyObjectWrapper<>(dstDir);
       this.dst = createReadOnlyWrapper(() -> this.dstRepo.get().resolve(PATH_TO_FOLDER.apply(this.src.get())), this.dstRepo);
       this.status = new SimpleStringProperty("initializing");
+      exceptionProperty().addListener((observable, oldValue, newValue) -> ((StringProperty) status).set("error"));
     }
 
     @Override
@@ -207,6 +208,11 @@ public class Game implements Serializable {
       File src = this.src.get().toFile();
       totalBytes = FileUtils.sizeOfDirectory(src);
       updateProgress(bytesCopied, totalBytes);
+      // TODO: check if the transfer will fit and set fail state if not
+      if (dstRepo.get().toFile().getUsableSpace() < totalBytes) {
+        throw new IOException("Game will not fit in destination repository!");
+      }
+
       ((StringProperty) status).set("copying");
       if (DONT_COPY || Files.isDirectory(dst.get())) {
         bytesCopied = totalBytes;
