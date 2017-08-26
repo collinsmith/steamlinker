@@ -495,6 +495,7 @@ public class MainController implements Initializable {
       transfer.setOnFailed(onFailed -> {
         Throwable throwable = transfer.getException();
         LOG.error(throwable.getMessage(), throwable);
+        Utils.newExceptionAlert(window, throwable).show();
       });
       if (libs.contains(transfer.dstRepo.get())) {
         transfer.setOnSucceeded(onSucceeded -> {
