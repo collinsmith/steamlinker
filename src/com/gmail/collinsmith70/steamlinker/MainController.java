@@ -48,6 +48,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.image.ImageView;
@@ -495,7 +496,23 @@ public class MainController implements Initializable {
       transfer.setOnFailed(onFailed -> {
         Throwable throwable = transfer.getException();
         LOG.error(throwable.getMessage(), throwable);
-        Utils.newExceptionAlert(window, throwable).show();
+        if (throwable instanceof NotEnoughSpaceException) {
+          Alert alert = new Alert(Alert.AlertType.ERROR);
+          alert.setTitle(Bundle.get("alert.transfer.wont.fit.title"));
+          alert.setContentText(Bundle.get("alert.transfer.wont.fit"));
+          alert.setHeaderText(null);
+          alert.getButtonTypes().setAll(ButtonType.OK);
+          alert.initOwner(window);
+          alert.getDialogPane().setExpandableContent(new TextArea(
+              Bundle.get("alert.transfer.wont.fit.expanded",
+                  Utils.bytesToString(transfer.totalSize.get()),
+                  Utils.bytesToString(transfer.dstRepo.get().toFile().getUsableSpace()),
+                  transfer.game.title.get())
+          ));
+          alert.show();
+        } else {
+          Utils.newExceptionAlert(window, throwable).show();
+        }
       });
       if (libs.contains(transfer.dstRepo.get())) {
         transfer.setOnSucceeded(onSucceeded -> {

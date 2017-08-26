@@ -29,6 +29,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -188,6 +189,7 @@ public class Game implements Serializable {
     @NotNull final ReadOnlyObjectProperty<Path> dst;
     @NotNull final ReadOnlyObjectProperty<Path> dstRepo;
     @NotNull final ReadOnlyStringProperty status;
+    @NotNull final ReadOnlyLongProperty totalSize;
 
     private long bytesCopied;
     private long totalBytes;
@@ -199,6 +201,7 @@ public class Game implements Serializable {
       this.dstRepo = new ReadOnlyObjectWrapper<>(dstDir);
       this.dst = createReadOnlyWrapper(() -> this.dstRepo.get().resolve(PATH_TO_FOLDER.apply(this.src.get())), this.dstRepo);
       this.status = new SimpleStringProperty("initializing");
+      this.totalSize = new SimpleLongProperty(0);
       exceptionProperty().addListener((observable, oldValue, newValue) -> ((StringProperty) status).set("error"));
     }
 
@@ -207,10 +210,11 @@ public class Game implements Serializable {
       ((StringProperty) status).set("sizing");
       File src = this.src.get().toFile();
       totalBytes = FileUtils.sizeOfDirectory(src);
+      ((LongProperty) totalSize).set(totalBytes);
       updateProgress(bytesCopied, totalBytes);
       // TODO: check if the transfer will fit and set fail state if not
       if (dstRepo.get().toFile().getUsableSpace() < totalBytes) {
-        throw new IOException("Game will not fit in destination repository!");
+        throw new NotEnoughSpaceException("Game will not fit in destination repository!");
       }
 
       ((StringProperty) status).set("copying");
