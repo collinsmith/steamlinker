@@ -81,3 +81,11 @@ BorderPane > left {
   -fx-background-color: linear-gradient(to bottom, derive(-fx-accent, -7%), derive(-fx-accent, 0%), derive(-fx-accent, -3%), derive(-fx-accent, -9%) );
   -fx-padding: 10px;
 }
+
+#jfxTransfers .jfxFailedTransferRow {
+  -fx-background-color: tomato;
+}
+
+#jfxTransfers .jfxFailedTransferRow:selected {
+  -fx-background-color: red;
+}

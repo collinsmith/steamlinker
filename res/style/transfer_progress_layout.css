@@ -1,7 +1,3 @@
-*{
-    -fx-accent: seagreen;
-}
-
 .progress-bar {
     -fx-indeterminate-bar-length: 60;
     -fx-indeterminate-bar-escape: true;
