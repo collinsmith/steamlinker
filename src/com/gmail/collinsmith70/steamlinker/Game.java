@@ -202,7 +202,9 @@ public class Game implements Serializable {
       this.dst = createReadOnlyWrapper(() -> this.dstRepo.get().resolve(PATH_TO_FOLDER.apply(this.src.get())), this.dstRepo);
       this.status = new SimpleStringProperty("initializing");
       this.totalSize = new SimpleLongProperty(0);
-      exceptionProperty().addListener((observable, oldValue, newValue) -> ((StringProperty) status).set("error"));
+      exceptionProperty().addListener((observable, oldValue, newValue) ->  {
+        ((StringProperty) status).set("error");
+      });
     }
 
     @Override

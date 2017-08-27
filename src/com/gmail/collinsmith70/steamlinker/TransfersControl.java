@@ -8,7 +8,6 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.ResourceBundle;
 
 import javafx.beans.property.ObjectProperty;
@@ -21,9 +20,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 
 public class TransfersControl extends HBox implements Initializable {
@@ -59,29 +56,10 @@ public class TransfersControl extends HBox implements Initializable {
     jfxTransfers.setTableMenuButtonVisible(true);
     jfxTransfers.itemsProperty().unbind();
     jfxTransfers.itemsProperty().bind(transfers);
-    jfxTransfers.setRowFactory(callback -> new TableRow<Transfer>() {
-      private static final String jfxFailedTransferRow = "jfxFailedTransferRow";
-
-      @Override
-      protected void updateItem(Transfer item, boolean empty) {
-        super.updateItem(item, empty);
-        List<String> styleClass = getStyleClass();
-        if (empty || item == null || !item.status.get().equals("error")) {
-          styleClass.remove(jfxFailedTransferRow);
-          setTooltip(null);
-          return;
-        }
-
-        if (!styleClass.contains(jfxFailedTransferRow)) {
-          styleClass.add(jfxFailedTransferRow);
-          Tooltip tooltip = new Tooltip(item.getException().getLocalizedMessage());
-          Tooltip.install(this, tooltip);
-        }
-      }
-    });
 
     jfxTransfersTitleColumn.setCellValueFactory(param -> param.getValue().game.title);
 
+    // TODO: Progressbar .bar -fx-accent should change to RED if transfer fails, but that context is not known
     jfxTransfersProgressColumn.setCellFactory(param -> new TableCell<Transfer, Double>() {
       private final ProgressBarControl progressBar = new ProgressBarControl();
       ObservableValue<Double> observable;
