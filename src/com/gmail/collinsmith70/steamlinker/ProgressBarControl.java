@@ -1,5 +1,7 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -13,8 +15,17 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.StackPane;
 
 public class ProgressBarControl extends StackPane implements Initializable {
-  @FXML private ProgressBar jfxProgressBar;
-  @FXML private Label jfxProgressBarLabel;
+  @FXML ProgressBar jfxProgressBar;
+  @FXML Label jfxProgressBarLabel;
+
+  private static final String PROGRESS_OKAY = "progressbar-okay";
+  private static final String PROGRESS_ERROR = "progressbar-error";
+  private final String[] BAR_STYLES = {PROGRESS_OKAY, PROGRESS_ERROR};
+
+  private void setProgressBarStyleClass(@NotNull String styleClass) {
+    jfxProgressBar.getStyleClass().removeAll(BAR_STYLES);
+    jfxProgressBar.getStyleClass().add(styleClass);
+  }
 
   public ProgressBarControl() {
     URL location = RepoControl.class.getResource("/layout/progressbar.fxml");
@@ -41,6 +52,7 @@ public class ProgressBarControl extends StackPane implements Initializable {
     jfxProgressBarLabel.visibleProperty()
         .bind(jfxProgressBar.progressProperty()
             .greaterThanOrEqualTo(0.0));
+    setProgressBarStyleClass(PROGRESS_OKAY);
   }
 
   public double getProgress() {
@@ -53,5 +65,9 @@ public class ProgressBarControl extends StackPane implements Initializable {
 
   public DoubleProperty progressProperty() {
     return jfxProgressBar.progressProperty();
+  }
+
+  public void throwError() {
+    setProgressBarStyleClass(PROGRESS_ERROR);
   }
 }

@@ -204,6 +204,7 @@ public class Game implements Serializable {
       this.totalSize = new SimpleLongProperty(0);
       exceptionProperty().addListener((observable, oldValue, newValue) ->  {
         ((StringProperty) status).set("error");
+        updateProgress(1, 1);
       });
     }
 

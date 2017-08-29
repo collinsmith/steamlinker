@@ -1,7 +1,8 @@
 .root {
-  -repo-color-available: #0094c5;
-  -repo-color-limited:   #d00000;
-  -progressbar-color: limegreen;
+  -repo-color-available:    #0094c5;
+  -repo-color-limited:      #d00000;
+  -progressbar-color:       limegreen;
+  -progressbar-color-error: #ff2020;
 }
 
 BorderPane {
@@ -47,11 +48,11 @@ BorderPane > left {
 }
 
 #jfxGames .jfxBrokenJunctionRow {
-  -fx-background-color: tomato;
+  -fx-background-color: #ff2020;
 }
 
 #jfxGames .jfxBrokenJunctionRow:selected {
-  -fx-background-color: red;
+  -fx-background-color: #d00000;
 }
 
 .placeholder {
@@ -76,8 +77,11 @@ BorderPane > left {
   -fx-padding: 2px;
 }
 
+.progressbar-okay  { -fx-accent: -progressbar-color;       }
+.progressbar-error { -fx-accent: -progressbar-color-error; }
+
 #material-progressbar .bar {
-  -fx-accent: -progressbar-color;
+/*  -fx-accent: -progressbar-color;*/
   -fx-background-color: linear-gradient(to bottom, derive(-fx-accent, -7%), derive(-fx-accent, 0%), derive(-fx-accent, -3%), derive(-fx-accent, -9%) );
   -fx-padding: 10px;
 }
