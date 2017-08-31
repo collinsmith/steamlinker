@@ -121,12 +121,4 @@
         </placeholder>
       </TreeTableView>
   </center>
-  <bottom>
-    <TitledPane text="%transfers" animated="false">
-      <BorderPane.margin>
-        <Insets top="8"/>
-      </BorderPane.margin>
-      <fx:include source="transfers_layout.fxml" fx:id="transfers" HBox.hgrow="ALWAYS" style="-fx-padding: 0px;"/>
-    </TitledPane>
-  </bottom>
 </BorderPane>
