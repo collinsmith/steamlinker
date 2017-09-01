@@ -516,6 +516,9 @@ public class MainController implements Initializable {
         }
       });
       if (libs.contains(transfer.dstRepo.get())) {
+        if (transfer.dst.get().toFile().exists()) {
+          LOG.info("Destination exists!");
+        }
         transfer.setOnSucceeded(onSucceeded -> {
           boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
           if (!keepOriginal) {
@@ -537,7 +540,12 @@ public class MainController implements Initializable {
 
   private void createJunction(@NotNull Path path, @NotNull Path target) {
     try {
-      //Utils.createJunction(path, target);
+      if (path.toFile().exists()) {
+        LOG.info("junction path exists: " + path);
+        tryDelete(path);
+      }
+
+      Utils.createJunction(path, target);
       LOG.info(path + "<--->" + target);
       if (false) throw new IOException();
     } catch (IOException e) {
@@ -550,7 +558,7 @@ public class MainController implements Initializable {
     assert Files.isDirectory(dir);
     try {
       LOG.info("deleting " + dir);
-      //FileUtils.deleteDirectory(dir.toFile());
+      FileUtils.deleteDirectory(dir.toFile());
       if (false) throw new IOException();
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
