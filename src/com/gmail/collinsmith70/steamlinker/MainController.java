@@ -547,7 +547,6 @@ public class MainController implements Initializable {
 
       Utils.createJunction(path, target);
       LOG.info(path + "<--->" + target);
-      if (false) throw new IOException();
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
       Utils.newExceptionAlert(window, e).show();
@@ -559,7 +558,6 @@ public class MainController implements Initializable {
     try {
       LOG.info("deleting " + dir);
       FileUtils.deleteDirectory(dir.toFile());
-      if (false) throw new IOException();
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
       Utils.newExceptionAlert(window, e).show();
