@@ -76,9 +76,10 @@ public class TransfersControl extends HBox implements Initializable {
           if (observable != null) {
             progressBar.progressProperty().bind(observable);
             Game.Transfer transfer = (Game.Transfer) getTableRow().getItem();
-            transfer.exceptionProperty().isNotNull().addListener((observable, oldValue, newValue) -> {
-              progressBar.throwError();
-            });
+            if (transfer != null) {
+              // FIXME: This isn't being called in every case
+              transfer.exceptionProperty().isNotNull().addListener((observable, oldValue, newValue) -> progressBar.throwError());
+            }
           } else if (item != null) {
             progressBar.setProgress(item);
           }

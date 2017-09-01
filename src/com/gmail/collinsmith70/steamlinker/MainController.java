@@ -188,6 +188,7 @@ public class MainController implements Initializable {
             return;
           }
 
+          // FIXME: Tooltip remains when items are recycled
           if (!styleClass.contains(jfxBrokenJunctionRow)) {
             styleClass.add(jfxBrokenJunctionRow);
             Tooltip tooltip = new Tooltip(Bundle.get("tooltip.broken.junction", item.path.get()));
@@ -480,7 +481,7 @@ public class MainController implements Initializable {
   private void onTransfer(@NotNull Game.TransferEvent event) {
     event.games.forEach(game -> LOG.info(game.path.get() + "->" + event.dstRepo));
     event.games.forEach(game -> {
-      Game.Transfer transfer = game.createTransfer(event.dstRepo);
+      Game.Transfer transfer = game.createTransfer(event.dstRepo, PREFERENCES.getBoolean(Main.Prefs.VERIFY, true));
       transfers.add(transfer);
       // TODO: specific implementation for repo to repo (replace existing links) and lib to lib (copy with no linking)
       if (libs.contains(transfer.dstRepo.get()) && libs.contains(transfer.srcRepo.get())) {

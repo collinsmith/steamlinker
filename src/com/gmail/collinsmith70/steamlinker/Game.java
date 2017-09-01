@@ -29,6 +29,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -174,12 +175,18 @@ public class Game implements Serializable {
 
   @NotNull
   Transfer createTransfer(@NotNull Path dst) {
-    return new Transfer(dst);
+    return createTransfer(dst, true);
+  }
+
+  @NotNull
+  Transfer createTransfer(@NotNull Path dst, boolean verify) {
+    return new Transfer(dst, verify);
   }
 
   final class Transfer extends Task {
-    private static final boolean DONT_COPY = true;
+    private static final boolean DONT_COPY = false;
 
+    private static final int MAX_ATTEMPTS = 5;
     private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
 
     @NotNull final Game game;
@@ -190,11 +197,12 @@ public class Game implements Serializable {
     @NotNull final ReadOnlyObjectProperty<Path> dstRepo;
     @NotNull final ReadOnlyStringProperty status;
     @NotNull final ReadOnlyLongProperty totalSize;
+    @NotNull final ReadOnlyBooleanProperty verify;
 
     private long bytesCopied;
     private long totalBytes;
 
-    private Transfer(@NotNull Path dstDir) {
+    private Transfer(@NotNull Path dstDir, boolean verify) {
       this.game = Game.this;
       this.src = createReadOnlyWrapper(() -> game.path.get(), game.path);
       this.srcRepo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(this.src.get()), this.src);
@@ -202,6 +210,7 @@ public class Game implements Serializable {
       this.dst = createReadOnlyWrapper(() -> this.dstRepo.get().resolve(PATH_TO_FOLDER.apply(this.src.get())), this.dstRepo);
       this.status = new SimpleStringProperty("initializing");
       this.totalSize = new SimpleLongProperty(0);
+      this.verify = new SimpleBooleanProperty(verify);
       exceptionProperty().addListener((observable, oldValue, newValue) ->  {
         ((StringProperty) status).set("error");
         updateProgress(1, 1);
@@ -225,7 +234,7 @@ public class Game implements Serializable {
         bytesCopied = totalBytes;
         updateProgress(bytesCopied, totalBytes);
       } else {
-        copyDirectoryToDirectory(src, dstRepo.get().toFile());
+        copyDirectoryToDirectory(src, dstRepo.get().toFile(), verify.get());
       }
 
       ((StringProperty) status).set("complete");
@@ -264,7 +273,7 @@ public class Game implements Serializable {
       return src + "->" + dst;
     }
 
-    public void copyDirectoryToDirectory(@NotNull File srcDir, @NotNull File destDir) throws IOException {
+    public void copyDirectoryToDirectory(@NotNull File srcDir, @NotNull File destDir, boolean validate) throws IOException {
       if (srcDir == null) {
         throw new NullPointerException("Source must not be null");
       }
@@ -277,10 +286,10 @@ public class Game implements Serializable {
       if (destDir.exists() && !destDir.isDirectory()) {
         throw new IllegalArgumentException("Destination '" + destDir + "' is not a directory");
       }
-      copyDirectory(srcDir, new File(destDir, srcDir.getName()), true);
+      copyDirectory(srcDir, new File(destDir, srcDir.getName()), validate, true);
     }
 
-    public void copyDirectory(@NotNull File srcDir, @NotNull File destDir, boolean preserveFileDate) throws IOException {
+    public void copyDirectory(@NotNull File srcDir, @NotNull File destDir, boolean validate, boolean preserveFileDate) throws IOException {
       if (srcDir == null) {
         throw new NullPointerException("Source must not be null");
       }
@@ -296,10 +305,10 @@ public class Game implements Serializable {
       if (srcDir.getCanonicalPath().equals(destDir.getCanonicalPath())) {
         throw new IOException("Source '" + srcDir + "' and destination '" + destDir + "' are the same");
       }
-      doCopyDirectory(srcDir, destDir, preserveFileDate);
+      doCopyDirectory(srcDir, destDir, validate, preserveFileDate);
     }
 
-    private void doCopyDirectory(@NotNull File srcDir, @NotNull File destDir, boolean preserveFileDate) throws IOException {
+    private void doCopyDirectory(@NotNull File srcDir, @NotNull File destDir, boolean validate, boolean preserveFileDate) throws IOException {
       if (destDir.exists()) {
         if (!destDir.isDirectory()) {
           throw new IOException("Destination '" + destDir + "' exists but is not a directory");
@@ -321,11 +330,22 @@ public class Game implements Serializable {
         throw new IOException("Failed to list contents of " + srcDir);
       }
       for (int i = 0; i < files.length && !isCancelled(); i++) {
-        File copiedFile = new File(destDir, files[i].getName());
-        if (files[i].isDirectory()) {
-          doCopyDirectory(files[i], copiedFile, preserveFileDate);
+        File originalFile = files[i];
+        File copiedFile = new File(destDir, originalFile.getName());
+        if (originalFile.isDirectory()) {
+          doCopyDirectory(originalFile, copiedFile, validate, preserveFileDate);
         } else {
-          doCopyFile(files[i], copiedFile, preserveFileDate);
+          long chk1, chk2;
+          for (int attempt = 0;; attempt++) {
+            doCopyFile(originalFile, copiedFile, preserveFileDate);
+            chk1 = FileUtils.checksumCRC32(originalFile);
+            chk2 = FileUtils.checksumCRC32(copiedFile);
+            if (chk1 == chk2) {
+              break;
+            } else if (attempt >= MAX_ATTEMPTS) {
+              throw new IOException(Bundle.get("exception.verify", originalFile.getName()));
+            }
+          }
           // TODO: perform a checksum on the copied file and the source file if desired
         }
       }

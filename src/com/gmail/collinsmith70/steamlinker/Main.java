@@ -51,6 +51,7 @@ public class Main extends Application {
     static String LIBS = "config.libs";
     static String REPOS = "config.repos";
     static String KEEP_ORIGINAL = "config.keep.original";
+    static String VERIFY = "config.verify";
     static String GAME_TITLE = "game.title.";
     static String GAME_SIZE = "game.size.";
   }
