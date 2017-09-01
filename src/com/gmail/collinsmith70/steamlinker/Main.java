@@ -85,7 +85,10 @@ public class Main extends Application {
     stage.setTitle(Bundle.get("app.name"));
     doIcons(stage);
     stage.setScene(scene);
+    stage.sizeToScene();
     stage.show();
+    stage.setMinWidth(stage.getWidth());
+    stage.setMinHeight(stage.getHeight());
 
     MainController controller = loader.getController();
     controller.bindProperties(PREFERENCES);
