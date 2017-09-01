@@ -10,5 +10,6 @@
                maxWidth="Infinity"
                style="-fx-background-insets: 0px;"/>
   <Label fx:id="jfxProgressBarLabel"
-         text="0%"/>
+         text="0%"
+         translateY="-1"/>
 </fx:root>
