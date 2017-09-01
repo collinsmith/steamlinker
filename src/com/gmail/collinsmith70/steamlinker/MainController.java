@@ -535,6 +535,7 @@ public class MainController implements Initializable {
             tryDelete(transfer.src.get());
           }
 
+          // FIXME: This is a workaround, because transfer.game is not the same as the game instance in jfxGames
           jfxGames.getItems()
               .filtered(tmp -> tmp.path.get().equals(currentPath))
               .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
@@ -547,6 +548,7 @@ public class MainController implements Initializable {
 
           createJunction(transfer.src.get(), transfer.dst.get());
 
+          // FIXME: This is a workaround, because transfer.game is not the same as the game instance in jfxGames
           jfxGames.getItems()
               .filtered(tmp -> tmp.path.get().equals(currentPath))
               .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
