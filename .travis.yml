@@ -28,7 +28,7 @@ before_deploy:
   - git config --global user.email "builds@travis-ci.org"
   - git config --global user.name "Travis CI"
   - git tag $GIT_TAG -a -f -m "Generated tag from TravisCI for build $TRAVIS_BUILD_NUMBER. This tag should not be relied upon due to constant forced retags to current build head, and master head should be used instead."
-  - git push -fq git@github.com:collinsmith/logscanner.git --tags
+  - git push -fq git@github.com:collinsmith/steamlinker.git --tags
 deploy:
   provider: releases
   api_key:
