@@ -58,6 +58,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.converter.DefaultStringConverter;
 
@@ -159,6 +160,7 @@ public class MainController implements Initializable {
   private final ListProperty<Game.Transfer> transfers = new SimpleListProperty<>(FXCollections.observableArrayList());
 
   private Window window;
+  private Stage stage;
   private Scene scene;
 
   @Override
@@ -337,6 +339,7 @@ public class MainController implements Initializable {
   void bindProperties(@NotNull Preferences prefs) {
     scene = jfxGames.getScene();
     window = scene.getWindow();
+    stage = (Stage) window;
 
     if (DEBUG_PROPERTY_CHANGES) {
       libs.addListener((observable, oldValue, newValue) -> LOG.debug("libs->" + newValue));
@@ -539,6 +542,7 @@ public class MainController implements Initializable {
           jfxGames.getItems()
               .filtered(tmp -> tmp.path.get().equals(currentPath))
               .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
+          stage.toFront();
         });
       } else {
         transfer.setOnSucceeded(onSucceeded -> {
@@ -552,6 +556,7 @@ public class MainController implements Initializable {
           jfxGames.getItems()
               .filtered(tmp -> tmp.path.get().equals(currentPath))
               .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
+          stage.toFront();
         });
       }
       new Thread(transfer).start();
@@ -566,7 +571,7 @@ public class MainController implements Initializable {
       }
 
       Utils.createJunction(path, target);
-      LOG.info(path + "<--->" + target);
+      LOG.info(path + " <<===>> " + target);
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
       Utils.newExceptionAlert(window, e).show();

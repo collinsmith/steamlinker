@@ -32,7 +32,7 @@ import javafx.stage.Window;
 import javafx.util.StringConverter;
 
 public class Utils {
-  private static final boolean DEBUG_JUNCTION_CREATION = Main.DEBUG_MODE && true;
+  private static final boolean DEBUG_JUNCTION_CREATION = Main.DEBUG_MODE && false;
 
   private static final Logger LOG = Logger.getLogger(Utils.class);
   static {
