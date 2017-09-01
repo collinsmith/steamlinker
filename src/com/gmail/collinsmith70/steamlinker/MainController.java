@@ -281,7 +281,7 @@ public class MainController implements Initializable {
       @Override
       protected void updateItem(Path item, boolean empty) {
         super.updateItem(item, empty);
-        configureRepoCell(this, libs, item, empty);
+        configureRepoCell(this, libs.get(), item, empty);
       }
     });
 
@@ -515,15 +515,29 @@ public class MainController implements Initializable {
           Utils.newExceptionAlert(window, throwable).show();
         }
       });
+      Path currentPath = game.path.get();
       if (libs.contains(transfer.dstRepo.get())) {
-        if (transfer.dst.get().toFile().exists()) {
-          LOG.info("Destination exists!");
+        Path dst = transfer.dst.get();
+        File dstFile = dst.toFile();
+        if (dstFile.exists()) {
+          try {
+            if (Utils.isJunctionOrSymlink(dst)) {
+              LOG.info("destination path exists and is a junction: " + dst);
+              Utils.deleteJunction(dst);
+            }
+          } catch (IOException e) {
+            Utils.newExceptionAlert(window, e).show();
+          }
         }
         transfer.setOnSucceeded(onSucceeded -> {
           boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
           if (!keepOriginal) {
             tryDelete(transfer.src.get());
           }
+
+          jfxGames.getItems()
+              .filtered(tmp -> tmp.path.get().equals(currentPath))
+              .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
         });
       } else {
         transfer.setOnSucceeded(onSucceeded -> {
@@ -532,6 +546,10 @@ public class MainController implements Initializable {
           }
 
           createJunction(transfer.src.get(), transfer.dst.get());
+
+          jfxGames.getItems()
+              .filtered(tmp -> tmp.path.get().equals(currentPath))
+              .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
         });
       }
       new Thread(transfer).start();

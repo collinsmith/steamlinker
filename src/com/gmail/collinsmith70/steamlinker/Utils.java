@@ -219,4 +219,23 @@ public class Utils {
       throw e;
     }
   }
+
+  public static void deleteJunction(@NotNull Path path) throws IOException {
+    ProcessBuilder builder = new ProcessBuilder("cmd.exe", "/c", "rmdir", path.toString());
+    builder.redirectErrorStream(true);
+    try {
+      Process p = builder.start();
+      if (DEBUG_JUNCTION_CREATION) {
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+          String line;
+          while ((line = r.readLine()) != null) {
+            LOG.info(line);
+          }
+        }
+      }
+    } catch (IOException e) {
+      LOG.error(e.getMessage(), e);
+      throw e;
+    }
+  }
 }

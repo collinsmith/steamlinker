@@ -204,8 +204,8 @@ public class Game implements Serializable {
 
     private Transfer(@NotNull Path dstDir, boolean verify) {
       this.game = Game.this;
-      this.src = createReadOnlyWrapper(() -> game.path.get(), game.path);
-      this.srcRepo = createReadOnlyWrapper(() -> PATH_TO_REPO.apply(this.src.get()), this.src);
+      this.src = new ReadOnlyObjectWrapper<>(game.path.get());
+      this.srcRepo = new ReadOnlyObjectWrapper<>(game.repo.get());
       this.dstRepo = new ReadOnlyObjectWrapper<>(dstDir);
       this.dst = createReadOnlyWrapper(() -> this.dstRepo.get().resolve(PATH_TO_FOLDER.apply(this.src.get())), this.dstRepo);
       this.status = new SimpleStringProperty("initializing");
@@ -238,6 +238,7 @@ public class Game implements Serializable {
       }
 
       ((StringProperty) status).set("complete");
+      game.path.setValue(dst.get());
       return null;
     }
 
