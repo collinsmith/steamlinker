@@ -28,16 +28,19 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.5'
 }
 
-task fatJar(type: Jar) {
+task jar {
     manifest {
         attributes 'Implementation-Title': 'Foobar',
-                   'Implementation-Version': version,
-                   'Built-By': System.getProperty('user.name'),
-                   'Built-Date': new Date(),
-                   'Built-JDK': System.getProperty('java.version'),
-                   'Main-Class': 'com.gmail.collinsmith70.steamlinker.Main'
+                'Implementation-Version': version,
+                'Built-By': System.getProperty('user.name'),
+                'Built-Date': new Date(),
+                'Built-JDK': System.getProperty('java.version'),
+                'Main-Class': 'com.gmail.collinsmith70.steamlinker.Main'
     }
+}
 
+task fatJar(type: Jar) {
+    manifest.from jar.manifest
     baseName = project.name + '-all'
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
