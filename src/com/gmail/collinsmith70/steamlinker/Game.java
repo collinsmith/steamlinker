@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import javafx.beans.Observable;
@@ -31,6 +32,7 @@ import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyLongProperty;
+import javafx.beans.property.ReadOnlyLongWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -127,6 +129,12 @@ public class Game implements Serializable {
     return wrapper;
   }
 
+  private static ReadOnlyLongProperty createReadOnlyLongWrapper(Callable<Long> func, Observable... dependencies) {
+    ReadOnlyLongWrapper wrapper = new ReadOnlyLongWrapper();
+    wrapper.bind(Bindings.createLongBinding(func, dependencies));
+    return wrapper;
+  }
+
   @Override
   public boolean equals(@Nullable Object obj) {
     if (obj == null) {
@@ -199,6 +207,10 @@ public class Game implements Serializable {
     @NotNull final ReadOnlyLongProperty totalSize;
     @NotNull final ReadOnlyBooleanProperty verify;
 
+    @NotNull final ReadOnlyLongProperty bytesPerSec;
+    @NotNull final ReadOnlyLongProperty eta;
+    // (actually a sample of previous bytesPerSec would be better)
+
     private long bytesCopied;
     private long totalBytes;
 
@@ -211,6 +223,16 @@ public class Game implements Serializable {
       this.status = new SimpleStringProperty("initializing");
       this.totalSize = new SimpleLongProperty(0);
       this.verify = new SimpleBooleanProperty(verify);
+      this.bytesPerSec = new SimpleLongProperty(0);
+      this.eta = createReadOnlyLongWrapper(() -> {
+        long value = bytesPerSec.get();
+        if (value == 0) {
+          return 0L;
+        }
+
+        return (totalBytes - bytesCopied) / value;
+      }, this.bytesPerSec);
+
       exceptionProperty().addListener((observable, oldValue, newValue) ->  {
         ((StringProperty) status).set("error");
         updateProgress(1, 1);
@@ -234,7 +256,28 @@ public class Game implements Serializable {
         bytesCopied = totalBytes;
         updateProgress(bytesCopied, totalBytes);
       } else {
+        Task speed = new Task() {
+          @Override
+          protected Object call() throws Exception {
+            long tmp = 0;
+            while (!isCancelled()) {
+              ((SimpleLongProperty) bytesPerSec).set(bytesCopied - tmp);
+              tmp = bytesCopied;
+              TimeUnit.SECONDS.sleep(1);
+            }
+
+            return null;
+          }
+
+          @Override
+          protected void cancelled() {
+            super.cancelled();
+            ((SimpleLongProperty) bytesPerSec).set(0);
+          }
+        };
+        new Thread(speed).start();
         copyDirectoryToDirectory(src, dstRepo.get().toFile(), verify.get());
+        speed.cancel();
       }
 
       ((StringProperty) status).set("complete");

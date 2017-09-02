@@ -32,6 +32,8 @@ public class TransfersControl extends HBox implements Initializable {
   @FXML private TableColumn<Transfer, Path> jfxTransfersSourceColumn;
   @FXML private TableColumn<Transfer, Path> jfxTransfersDestinationColumn;
   @FXML private TableColumn<Transfer, String> jfxTransfersStatusColumn;
+  @FXML private TableColumn<Transfer, Long> jfxTransfersSpeedColumn;
+  @FXML private TableColumn<Transfer, Long> jfxTransfersEtaColumn;
 
   @NotNull ObjectProperty<ObservableList<Transfer>> transfers = new SimpleObjectProperty<>(FXCollections.observableArrayList());
   @NotNull ObjectProperty<ObservableList<Path>> libs = new SimpleObjectProperty<>(FXCollections.emptyObservableList());
@@ -118,10 +120,46 @@ public class TransfersControl extends HBox implements Initializable {
       jfxTransfersStatusColumn.setVisible(false);
     }
 
+    jfxTransfersSpeedColumn.setStyle("-fx-alignment: CENTER;");
+    jfxTransfersSpeedColumn.setCellFactory(param -> new TableCell<Transfer, Long>() {
+      @Override
+      protected void updateItem(Long item, boolean empty) {
+        super.updateItem(item, empty);
+        if (item == null || empty) {
+          setText(null);
+        } else {
+          setText(Utils.bytesToString(item.longValue()) + "/s");
+        }
+      }
+    });
+    jfxTransfersSpeedColumn.setCellValueFactory((TableColumn.CellDataFeatures<Transfer, Long> param)
+        -> param.getValue().bytesPerSec.asObject());
+
+    jfxTransfersEtaColumn.setStyle("-fx-alignment: CENTER;");
+    jfxTransfersEtaColumn.setCellFactory(param -> new TableCell<Transfer, Long>() {
+      @Override
+      protected void updateItem(Long item, boolean empty) {
+        super.updateItem(item, empty);
+        if (item == null || empty) {
+          setText(null);
+        } else {
+          long hrs = item / 3600;
+          long rem = item % 3600;
+          long mins = rem / 60;
+          long secs = rem % 60;
+          setText(String.format("%d:%02d:%02d", hrs, mins, secs));
+        }
+      }
+    });
+    jfxTransfersEtaColumn.setCellValueFactory((TableColumn.CellDataFeatures<Transfer, Long> param)
+        -> param.getValue().eta.asObject());
+
     jfxTransfersTitleColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.25).subtract(15));
     jfxTransfersProgressColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.125));
     jfxTransfersSourceColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.25));
     jfxTransfersDestinationColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.25));
+    jfxTransfersSpeedColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.0625));
+    jfxTransfersEtaColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.0625));
     jfxTransfersStatusColumn.prefWidthProperty().bind(jfxTransfers.widthProperty().multiply(0.125));
   }
 

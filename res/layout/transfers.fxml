@@ -54,6 +54,10 @@
                    text="%game.title"/>
       <TableColumn fx:id="jfxTransfersProgressColumn"
                    text="%transfer.progress"/>
+      <TableColumn fx:id="jfxTransfersEtaColumn"
+                   text="%transfer.eta"/>
+      <TableColumn fx:id="jfxTransfersSpeedColumn"
+                   text="%transfer.speed"/>
       <TableColumn fx:id="jfxTransfersSourceColumn"
                    text="%transfer.source"/>
       <TableColumn fx:id="jfxTransfersDestinationColumn"
