@@ -23,7 +23,7 @@ before_deploy:
   - export RELEASE_JAR_LIBRARY=$(ls build/libs/*.jar)
   - export GIT_TAG=${RELEASE_JAR_LIBRARY%.jar}
   - GIT_TAG=${GIT_TAG##*/}
-  - GIT_TAG=${GIT_TAG/steamlinker-all-/v}
+  - GIT_TAG=${GIT_TAG/steamlinker-/v}
   - echo "Deploying $RELEASE_JAR_LIBRARY to GitHub releases as $GIT_TAG"
   - git config --global user.email "builds@travis-ci.org"
   - git config --global user.name "Travis CI"
@@ -42,6 +42,6 @@ deploy:
     branch: master
 branches:
   except:
-    - /^v[0-9]*[.][0-9]*-SNAPSHOT$/
+    - /^v[0-9]*[.][0-9]*-SNAPSHOT-all$/
     - /^untagged-.*$/
     - gh-pages
