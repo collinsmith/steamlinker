@@ -246,7 +246,6 @@ public class Game implements Serializable {
       totalBytes = FileUtils.sizeOfDirectory(src);
       ((LongProperty) totalSize).set(totalBytes);
       updateProgress(bytesCopied, totalBytes);
-      // TODO: check if the transfer will fit and set fail state if not
       if (dstRepo.get().toFile().getUsableSpace() < totalBytes) {
         throw new NotEnoughSpaceException("Game will not fit in destination repository!");
       }
@@ -390,7 +389,6 @@ public class Game implements Serializable {
               throw new IOException(Bundle.get("exception.verify", originalFile.getName()));
             }
           }
-          // TODO: perform a checksum on the copied file and the source file if desired
         }
       }
     }

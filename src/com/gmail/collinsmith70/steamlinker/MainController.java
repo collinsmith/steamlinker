@@ -70,6 +70,7 @@ public class MainController implements Initializable {
   private static final boolean DEBUG_PROPERTY_CHANGES = Main.DEBUG_MODE && true;
   private static final boolean DEBUG_STEAM_NOT_FOUND = Main.DEBUG_MODE && false;
   private static final boolean DEBUG_AUTO_ADD_REPOS = Main.DEBUG_MODE && true;
+  private static final boolean DEBUG_TRANSFERS = Main.DEBUG_MODE && true;
 
   private static final Logger LOG = Logger.getLogger(MainController.class);
   static {
@@ -486,16 +487,12 @@ public class MainController implements Initializable {
     event.games.forEach(game -> {
       Game.Transfer transfer = game.createTransfer(event.dstRepo, PREFERENCES.getBoolean(Main.Prefs.VERIFY, true));
       transfers.add(transfer);
-      // TODO: specific implementation for repo to repo (replace existing links) and lib to lib (copy with no linking)
-      if (libs.contains(transfer.dstRepo.get()) && libs.contains(transfer.srcRepo.get())) {
-        Utils.newExceptionAlert(window, new UnsupportedOperationException("Cannot transfer games from one Steam Library to another yet!"))
-            .show();
-        return;
-      } else if (repos.contains(transfer.dstRepo.get()) && repos.contains(transfer.srcRepo.get())) {
-        Utils.newExceptionAlert(window, new UnsupportedOperationException("Cannot transfer games from one repository to another yet!"))
-            .show();
-        return;
-      }
+
+      final Path currentPath = game.path.get();
+      final Path src = transfer.src.get();
+      final Path srcRepo = transfer.srcRepo.get();
+      final Path dst = transfer.dst.get();
+      final Path dstRepo = transfer.dstRepo.get();
 
       transfer.setOnFailed(onFailed -> {
         Throwable throwable = transfer.getException();
@@ -518,25 +515,47 @@ public class MainController implements Initializable {
           Utils.newExceptionAlert(window, throwable).show();
         }
       });
-      Path currentPath = game.path.get();
-      if (libs.contains(transfer.dstRepo.get())) {
-        Path dst = transfer.dst.get();
-        File dstFile = dst.toFile();
+
+      if (libs.contains(srcRepo) && libs.contains(dstRepo)) {
+        // TODO: Support lib to lib transfers
+        Utils.newExceptionAlert(window, new UnsupportedOperationException(
+            "Cannot transfer games from one Steam Library to another yet!"))
+            .show();
+        return;
+      } else if (repos.contains(srcRepo) && repos.contains(dstRepo)) {
+        // TODO: Support repo to repo transfers
+        Utils.newExceptionAlert(window, new UnsupportedOperationException(
+            "Cannot transfer games from one repository to another yet!"))
+            .show();
+        return;
+      }
+
+      if (libs.contains(dstRepo)) {
+        // Transferring from repo to lib
+        if (!repos.contains(srcRepo)) {
+          Utils.newExceptionAlert(window, new UnsupportedOperationException(
+              "Expected repo to lib transfer, but " + srcRepo + " is not a registered repo."))
+              .show();
+          return;
+        }
+
+        final File dstFile = dst.toFile();
         if (dstFile.exists()) {
           try {
             if (Utils.isJunctionOrSymlink(dst)) {
-              LOG.info("destination path exists and is a junction: " + dst);
+              if (DEBUG_TRANSFERS) LOG.info("removing junction in steam lib: " + dst);
               Utils.deleteJunction(dst);
             }
           } catch (IOException e) {
             Utils.newExceptionAlert(window, e).show();
           }
         }
+
         transfer.setOnSucceeded(onSucceeded -> {
           boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
           if (!keepOriginal) {
-            tryDelete(transfer.src.get());
-          }
+            tryDelete(src);
+          } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
 
           // FIXME: This is a workaround, because transfer.game is not the same as the game instance in jfxGames
           jfxGames.getItems()
@@ -545,12 +564,16 @@ public class MainController implements Initializable {
           stage.toFront();
         });
       } else {
-        transfer.setOnSucceeded(onSucceeded -> {
-          if (Files.isDirectory(transfer.dst.get())) {
-            LOG.info(transfer.dst.get() + " already exists, deleting " + transfer.src.get() + " and creating link");
-          }
+        // Transferring from lib to repo
+        if (!repos.contains(dstRepo)) {
+          Utils.newExceptionAlert(window, new UnsupportedOperationException(
+              "Expected lib to repo transfer, but " + dstRepo + " is not a registered repo."))
+              .show();
+          return;
+        }
 
-          createJunction(transfer.src.get(), transfer.dst.get());
+        transfer.setOnSucceeded(onSucceeded -> {
+          createJunction(src, dst);
 
           // FIXME: This is a workaround, because transfer.game is not the same as the game instance in jfxGames
           jfxGames.getItems()
@@ -559,6 +582,7 @@ public class MainController implements Initializable {
           stage.toFront();
         });
       }
+
       new Thread(transfer).start();
     });
   }
@@ -566,7 +590,7 @@ public class MainController implements Initializable {
   private void createJunction(@NotNull Path path, @NotNull Path target) {
     try {
       if (path.toFile().exists()) {
-        LOG.info("junction path exists: " + path);
+        if (DEBUG_TRANSFERS) LOG.info("junction path exists: " + path);
         tryDelete(path);
       }
 
@@ -581,7 +605,7 @@ public class MainController implements Initializable {
   private void tryDelete(@NotNull Path dir) {
     assert Files.isDirectory(dir);
     try {
-      LOG.info("deleting " + dir);
+      if (DEBUG_TRANSFERS) LOG.info("deleting " + dir);
       FileUtils.deleteDirectory(dir.toFile());
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
