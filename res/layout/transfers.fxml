@@ -5,6 +5,7 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Text?>
@@ -30,21 +31,25 @@
         <FontIcon iconLiteral="gmi-play-arrow:20:seagreen"/>
       </graphic>
     </ToggleButton>
-    <Button id="material-button"
+    <!--<Button id="material-button"
             fx:id="btnRemoveTransfer"
             contentDisplay="GRAPHIC_ONLY"
             mnemonicParsing="false">
       <graphic>
         <FontIcon iconLiteral="gmi-close:20:red"/>
       </graphic>
-    </Button>
+    </Button>-->
     <Button id="material-button"
             fx:id="btnClearTransfers"
+            onAction="#clearTransfers"
             contentDisplay="GRAPHIC_ONLY"
             mnemonicParsing="false">
       <graphic>
         <FontIcon iconLiteral="gmi-delete-sweep:20:dimgray"/>
       </graphic>
+      <tooltip>
+        <Tooltip text="%transfers.clear"/>
+      </tooltip>
     </Button>
   </VBox>
   <TableView fx:id="jfxTransfers"

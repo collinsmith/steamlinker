@@ -9,15 +9,18 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ResourceBundle;
+import java.util.concurrent.FutureTask;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -34,6 +37,8 @@ public class TransfersControl extends HBox implements Initializable {
   @FXML private TableColumn<Transfer, String> jfxTransfersStatusColumn;
   @FXML private TableColumn<Transfer, Long> jfxTransfersSpeedColumn;
   @FXML private TableColumn<Transfer, Long> jfxTransfersEtaColumn;
+
+  @FXML private Button btnClearTransfers;
 
   @NotNull ObjectProperty<ObservableList<Transfer>> transfers = new SimpleObjectProperty<>(FXCollections.observableArrayList());
   @NotNull ObjectProperty<ObservableList<Path>> libs = new SimpleObjectProperty<>(FXCollections.emptyObservableList());
@@ -180,6 +185,13 @@ public class TransfersControl extends HBox implements Initializable {
   @NotNull
   public ObjectProperty<ObservableList<Path>> libsProperty() {
     return libs;
+  }
+
+  @FXML
+  private void clearTransfers(@NotNull ActionEvent event) {
+    event.consume();
+    ObservableList<Game.Transfer> transfers = this.transfers.get();
+    transfers.removeIf(FutureTask::isDone);
   }
 
 }
