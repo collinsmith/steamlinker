@@ -1,5 +1,6 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
@@ -20,7 +21,7 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 
-  static final boolean DEBUG_MODE = true;
+  static final boolean DEBUG_MODE = false;
   private static final boolean DEBUG_PREFERENCE_CHANGES = DEBUG_MODE && true;
 
   private static final Logger LOG = Logger.getLogger(Main.class);
@@ -73,6 +74,9 @@ public class Main extends Application {
     Parent root;
     try {
       root = loader.load();
+      if (!SystemUtils.IS_OS_WINDOWS) {
+        throw new Exception("Unsupported OS: " + SystemUtils.OS_NAME);
+      }
     } catch (Exception e) {
       LOG.fatal(e.getMessage(), e);
       Utils.newExceptionAlert("alert.exception.while.starting", e).showAndWait();

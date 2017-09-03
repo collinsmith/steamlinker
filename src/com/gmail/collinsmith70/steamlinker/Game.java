@@ -209,7 +209,6 @@ public class Game implements Serializable {
 
     @NotNull final ReadOnlyLongProperty bytesPerSec;
     @NotNull final ReadOnlyLongProperty eta;
-    // (actually a sample of previous bytesPerSec would be better)
 
     private long bytesCopied;
     private long totalBytes;
@@ -241,17 +240,21 @@ public class Game implements Serializable {
 
     @Override
     protected Object call() throws Exception {
+      final Path src = this.src.get();
+      final File srcFile = src.toFile();
+      final Path dst = this.dst.get();
+      final Path dstRepo = this.dstRepo.get();
+      final File dstRepoFile = dstRepo.toFile();
       ((StringProperty) status).set("sizing");
-      File src = this.src.get().toFile();
-      totalBytes = FileUtils.sizeOfDirectory(src);
+      totalBytes = FileUtils.sizeOfDirectory(srcFile);
       ((LongProperty) totalSize).set(totalBytes);
       updateProgress(bytesCopied, totalBytes);
-      if (dstRepo.get().toFile().getUsableSpace() < totalBytes) {
+      if (dstRepoFile.getUsableSpace() < totalBytes) {
         throw new NotEnoughSpaceException("Game will not fit in destination repository!");
       }
 
       ((StringProperty) status).set("copying");
-      if (DONT_COPY || Files.isDirectory(dst.get())) {
+      if (DONT_COPY || Files.isDirectory(dst)) {
         bytesCopied = totalBytes;
         updateProgress(bytesCopied, totalBytes);
       } else {
@@ -275,12 +278,12 @@ public class Game implements Serializable {
           }
         };
         new Thread(speed).start();
-        copyDirectoryToDirectory(src, dstRepo.get().toFile(), verify.get());
+        copyDirectoryToDirectory(srcFile, dstRepoFile, verify.get());
         speed.cancel();
       }
 
       ((StringProperty) status).set("complete");
-      game.path.setValue(dst.get());
+      game.path.setValue(dst);
       return null;
     }
 
@@ -321,7 +324,7 @@ public class Game implements Serializable {
         throw new NullPointerException("Source must not be null");
       }
       if (srcDir.exists() && !srcDir.isDirectory()) {
-        throw new IllegalArgumentException("Source '" + destDir + "' is not a directory");
+        throw new IllegalArgumentException("Source '" + srcDir + "' is not a directory");
       }
       if (destDir == null) {
         throw new NullPointerException("Destination must not be null");
@@ -372,22 +375,25 @@ public class Game implements Serializable {
       if (files == null) {  // null if security restricted
         throw new IOException("Failed to list contents of " + srcDir);
       }
-      for (int i = 0; i < files.length && !isCancelled(); i++) {
-        File originalFile = files[i];
-        File copiedFile = new File(destDir, originalFile.getName());
-        if (originalFile.isDirectory()) {
-          doCopyDirectory(originalFile, copiedFile, validate, preserveFileDate);
+      for (int i = 0; i < files.length; i++) {
+        File copiedFile = new File(destDir, files[i].getName());
+        if (files[i].isDirectory()) {
+          doCopyDirectory(files[i], copiedFile, validate, preserveFileDate);
         } else {
-          long chk1, chk2;
-          for (int attempt = 0;; attempt++) {
-            doCopyFile(originalFile, copiedFile, preserveFileDate);
-            chk1 = FileUtils.checksumCRC32(originalFile);
-            chk2 = FileUtils.checksumCRC32(copiedFile);
-            if (chk1 == chk2) {
-              break;
-            } else if (attempt >= MAX_ATTEMPTS) {
-              throw new IOException(Bundle.get("exception.verify", originalFile.getName()));
+          if (validate) {
+            long chk1, chk2;
+            for (int attempt = 0; ; attempt++) {
+              doCopyFile(files[i], copiedFile, preserveFileDate);
+              chk1 = FileUtils.checksumCRC32(files[i]);
+              chk2 = FileUtils.checksumCRC32(copiedFile);
+              if (chk1 == chk2) {
+                break;
+              } else if (attempt >= MAX_ATTEMPTS) {
+                throw new IOException(Bundle.get("exception.verify", files[i].getName()));
+              }
             }
+          } else {
+            doCopyFile(files[i], copiedFile, preserveFileDate);
           }
         }
       }

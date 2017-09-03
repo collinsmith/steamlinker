@@ -164,6 +164,17 @@ public class MainController implements Initializable {
   private Stage stage;
   private Scene scene;
 
+  private LinkerService linkerService = new WindowsLinkerService();
+
+  public void setLinkerService(@NotNull LinkerService linkerService) {
+    this.linkerService = linkerService;
+  }
+
+  @NotNull
+  public LinkerService getLinkerService() {
+    return linkerService;
+  }
+
   @Override
   public void initialize(URL location, ResourceBundle resources) {
     jfxLibs.setItems(libs);
@@ -372,7 +383,7 @@ public class MainController implements Initializable {
                   } catch (IOException e) {
                     LOG.warn("Broken link detected: " + path);
                     try {
-                      return result.init(name, Utils.toRealPath(path), true);
+                      return result.init(name, linkerService.toRealPath(path), true);
                     } catch (Exception ex) {
                       LOG.error(ex.getMessage(), ex);
                     }
@@ -417,7 +428,7 @@ public class MainController implements Initializable {
       }
     });
     libs.set(PATHS_CONVERTER.fromString(PREFERENCES.get(Main.Prefs.LIBS, ((Supplier<String>) () -> {
-      Path steamDir = Utils.tryFindSteam();
+      Path steamDir = linkerService.findSteam();
       if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
         steamDir = alertSteamFound(window, steamDir);
       } else {
@@ -483,108 +494,102 @@ public class MainController implements Initializable {
 
   @FXML
   private void onTransfer(@NotNull Game.TransferEvent event) {
+    final List<Game> theseGames = this.games.get();
     event.games.forEach(game -> LOG.info(game.path.get() + "->" + event.dstRepo));
-    event.games.forEach(game -> {
-      Game.Transfer transfer = game.createTransfer(event.dstRepo, PREFERENCES.getBoolean(Main.Prefs.VERIFY, true));
-      transfers.add(transfer);
+    event.games.stream()
+        .map(game -> theseGames.stream()
+            .filter(tmp -> tmp.path.get().equals(game.path.get()))
+            .findFirst()
+            .get())
+        .forEach(game -> {
+          Game.Transfer transfer = game.createTransfer(event.dstRepo, PREFERENCES.getBoolean(Main.Prefs.VERIFY, true));
+          transfers.add(transfer);
 
-      final Path currentPath = game.path.get();
-      final Path src = transfer.src.get();
-      final Path srcRepo = transfer.srcRepo.get();
-      final Path dst = transfer.dst.get();
-      final Path dstRepo = transfer.dstRepo.get();
+          final Path currentPath = game.path.get();
+          final Path src = transfer.src.get();
+          final Path srcRepo = transfer.srcRepo.get();
+          final Path dst = transfer.dst.get();
+          final Path dstRepo = transfer.dstRepo.get();
 
-      transfer.setOnFailed(onFailed -> {
-        Throwable throwable = transfer.getException();
-        LOG.error(throwable.getMessage(), throwable);
-        if (throwable instanceof NotEnoughSpaceException) {
-          Alert alert = new Alert(Alert.AlertType.ERROR);
-          alert.setTitle(Bundle.get("alert.transfer.wont.fit.title"));
-          alert.setContentText(Bundle.get("alert.transfer.wont.fit"));
-          alert.setHeaderText(null);
-          alert.getButtonTypes().setAll(ButtonType.OK);
-          alert.initOwner(window);
-          alert.getDialogPane().setExpandableContent(new TextArea(
-              Bundle.get("alert.transfer.wont.fit.expanded",
-                  Utils.bytesToString(transfer.totalSize.get()),
-                  Utils.bytesToString(transfer.dstRepo.get().toFile().getUsableSpace()),
-                  transfer.game.title.get())
-          ));
-          alert.show();
-        } else {
-          Utils.newExceptionAlert(window, throwable).show();
-        }
-      });
-
-      if (libs.contains(srcRepo) && libs.contains(dstRepo)) {
-        // TODO: Support lib to lib transfers
-        Utils.newExceptionAlert(window, new UnsupportedOperationException(
-            "Cannot transfer games from one Steam Library to another yet!"))
-            .show();
-        return;
-      } else if (repos.contains(srcRepo) && repos.contains(dstRepo)) {
-        // TODO: Support repo to repo transfers
-        Utils.newExceptionAlert(window, new UnsupportedOperationException(
-            "Cannot transfer games from one repository to another yet!"))
-            .show();
-        return;
-      }
-
-      if (libs.contains(dstRepo)) {
-        // Transferring from repo to lib
-        if (!repos.contains(srcRepo)) {
-          Utils.newExceptionAlert(window, new UnsupportedOperationException(
-              "Expected repo to lib transfer, but " + srcRepo + " is not a registered repo."))
-              .show();
-          return;
-        }
-
-        final File dstFile = dst.toFile();
-        if (dstFile.exists()) {
-          try {
-            if (Utils.isJunctionOrSymlink(dst)) {
-              if (DEBUG_TRANSFERS) LOG.info("removing junction in steam lib: " + dst);
-              Utils.deleteJunction(dst);
+          transfer.setOnFailed(onFailed -> {
+            Throwable throwable = transfer.getException();
+            LOG.error(throwable.getMessage(), throwable);
+            if (throwable instanceof NotEnoughSpaceException) {
+              Alert alert = new Alert(Alert.AlertType.ERROR);
+              alert.setTitle(Bundle.get("alert.transfer.wont.fit.title"));
+              alert.setContentText(Bundle.get("alert.transfer.wont.fit"));
+              alert.setHeaderText(null);
+              alert.getButtonTypes().setAll(ButtonType.OK);
+              alert.initOwner(window);
+              alert.getDialogPane().setExpandableContent(new TextArea(
+                  Bundle.get("alert.transfer.wont.fit.expanded",
+                      Utils.bytesToString(transfer.totalSize.get()),
+                      Utils.bytesToString(transfer.dstRepo.get().toFile().getUsableSpace()),
+                      transfer.game.title.get())
+              ));
+              alert.show();
+            } else {
+              Utils.newExceptionAlert(window, throwable).show();
             }
-          } catch (IOException e) {
-            Utils.newExceptionAlert(window, e).show();
+          });
+
+          if (libs.contains(srcRepo) && libs.contains(dstRepo)) {
+            // TODO: Support lib to lib transfers
+            Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                "Cannot transfer games from one Steam Library to another yet!"))
+                .show();
+            return;
+          } else if (repos.contains(srcRepo) && repos.contains(dstRepo)) {
+            // TODO: Support repo to repo transfers
+            Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                "Cannot transfer games from one repository to another yet!"))
+                .show();
+            return;
           }
-        }
 
-        transfer.setOnSucceeded(onSucceeded -> {
-          boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
-          if (!keepOriginal) {
-            tryDelete(src);
-          } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
+          if (libs.contains(dstRepo)) {
+            // Transferring from repo to lib
+            if (!repos.contains(srcRepo)) {
+              Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                  "Expected repo to lib transfer, but " + srcRepo + " is not a registered repo."))
+                  .show();
+              return;
+            }
 
-          // FIXME: This is a workaround, because transfer.game is not the same as the game instance in jfxGames
-          jfxGames.getItems()
-              .filtered(tmp -> tmp.path.get().equals(currentPath))
-              .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
-          stage.toFront();
+            try {
+              if (linkerService.isJunction(dst)) {
+                if (DEBUG_TRANSFERS) LOG.info("removing junction in steam lib: " + dst);
+                linkerService.deleteJunction(dst);
+              }
+            } catch (Exception e) {
+              Utils.newExceptionAlert(window, e).show();
+            }
+
+            transfer.setOnSucceeded(onSucceeded -> {
+              boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
+              if (!keepOriginal) {
+                tryDelete(src);
+              } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
+
+              stage.toFront();
+            });
+          } else {
+            // Transferring from lib to repo
+            if (!repos.contains(dstRepo)) {
+              Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                  "Expected lib to repo transfer, but " + dstRepo + " is not a registered repo."))
+                  .show();
+              return;
+            }
+
+            transfer.setOnSucceeded(onSucceeded -> {
+              createJunction(src, dst);
+              stage.toFront();
+            });
+          }
+
+          new Thread(transfer).start();
         });
-      } else {
-        // Transferring from lib to repo
-        if (!repos.contains(dstRepo)) {
-          Utils.newExceptionAlert(window, new UnsupportedOperationException(
-              "Expected lib to repo transfer, but " + dstRepo + " is not a registered repo."))
-              .show();
-          return;
-        }
-
-        transfer.setOnSucceeded(onSucceeded -> {
-          createJunction(src, dst);
-
-          // FIXME: This is a workaround, because transfer.game is not the same as the game instance in jfxGames
-          jfxGames.getItems()
-              .filtered(tmp -> tmp.path.get().equals(currentPath))
-              .forEach(tmp -> tmp.path.setValue(transfer.game.path.get()));
-          stage.toFront();
-        });
-      }
-
-      new Thread(transfer).start();
-    });
   }
 
   private void createJunction(@NotNull Path path, @NotNull Path target) {
@@ -594,9 +599,9 @@ public class MainController implements Initializable {
         tryDelete(path);
       }
 
-      Utils.createJunction(path, target);
+      linkerService.createJunction(path, target);
       LOG.info(path + " <<===>> " + target);
-    } catch (IOException e) {
+    } catch (Exception e) {
       LOG.error(e.getMessage(), e);
       Utils.newExceptionAlert(window, e).show();
     }
