@@ -55,6 +55,10 @@ BorderPane > left {
   -fx-background-color: #d00000;
 }
 
+#jfxTransfers .table-cell {
+  -fx-alignment: center-left;
+}
+
 .placeholder {
   -fx-opacity: 0.5;
 }

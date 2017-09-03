@@ -574,47 +574,52 @@ public class MainController implements Initializable {
             return;
           }
 
-          if (libs.contains(dstRepo)) {
-            // Transferring from repo to lib
-            if (!repos.contains(srcRepo)) {
-              Utils.newExceptionAlert(window, new UnsupportedOperationException(
-                  "Expected repo to lib transfer, but " + srcRepo + " is not a registered repo."))
-                  .show();
+          transfer.status.addListener((observable, oldValue, newValue) -> {
+            if (!newValue.equals("copying")) {
               return;
             }
 
-            try {
-              if (linkerService.isJunction(dst)) {
-                if (DEBUG_TRANSFERS) LOG.info("removing junction in steam lib: " + dst);
-                linkerService.deleteJunction(dst);
+            if (libs.contains(dstRepo)) {
+              // Transferring from repo to lib
+              if (!repos.contains(srcRepo)) {
+                Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                    "Expected repo to lib transfer, but " + srcRepo + " is not a registered repo."))
+                    .show();
+                return;
               }
-            } catch (Exception e) {
-              Utils.newExceptionAlert(window, e).show();
+
+              try {
+                if (linkerService.isJunction(dst)) {
+                  if (DEBUG_TRANSFERS) LOG.info("removing junction in steam lib: " + dst);
+                  linkerService.deleteJunction(dst);
+                }
+              } catch (Exception e) {
+                Utils.newExceptionAlert(window, e).show();
+              }
+
+              transfer.setOnSucceeded(onSucceeded -> {
+                boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
+                if (!keepOriginal) {
+                  tryDelete(src);
+                } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
+
+                stage.toFront();
+              });
+            } else {
+              // Transferring from lib to repo
+              if (!repos.contains(dstRepo)) {
+                Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                    "Expected lib to repo transfer, but " + dstRepo + " is not a registered repo."))
+                    .show();
+                return;
+              }
+
+              transfer.setOnSucceeded(onSucceeded -> {
+                createJunction(src, dst);
+                stage.toFront();
+              });
             }
-
-            transfer.setOnSucceeded(onSucceeded -> {
-              boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
-              if (!keepOriginal) {
-                tryDelete(src);
-              } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
-
-              stage.toFront();
-            });
-          } else {
-            // Transferring from lib to repo
-            if (!repos.contains(dstRepo)) {
-              Utils.newExceptionAlert(window, new UnsupportedOperationException(
-                  "Expected lib to repo transfer, but " + dstRepo + " is not a registered repo."))
-                  .show();
-              return;
-            }
-
-            transfer.setOnSucceeded(onSucceeded -> {
-              createJunction(src, dst);
-              stage.toFront();
-            });
-          }
-
+          });
           new Thread(transfer).start();
         });
   }

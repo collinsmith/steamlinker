@@ -4,10 +4,12 @@ import com.gmail.collinsmith70.steamlinker.Game.Transfer;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.FutureTask;
 
@@ -15,19 +17,31 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.HBox;
+import javafx.scene.text.Font;
+import javafx.util.converter.DefaultStringConverter;
 
 public class TransfersControl extends HBox implements Initializable {
   private static final boolean DEBUG_TRANSFERS = Main.DEBUG_MODE && true;
+
+  private static final boolean USE_TOOLTIP_FOR_TRANSFER_EXCEPTIONS = false;
 
   @FXML private TableView<Transfer> jfxTransfers;
   @FXML private TableColumn<Transfer, String> jfxTransfersTitleColumn;
@@ -65,8 +79,52 @@ public class TransfersControl extends HBox implements Initializable {
     jfxTransfers.itemsProperty().bind(transfers);
 
     jfxTransfersTitleColumn.setCellValueFactory(param -> param.getValue().game.title);
+    jfxTransfersTitleColumn.setCellFactory(Callback -> new TextFieldTableCell<Game.Transfer, String>(new DefaultStringConverter()) {
+      @Override
+      public void updateItem(String item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty) {
+          setGraphic(null);
+        }
 
-    // TODO: Progressbar .bar -fx-accent should change to RED if transfer fails, but that context is not known
+        TableRow<Game.Transfer> row = getTableRow();
+        Game.Transfer transfer = row.getItem();
+        if (transfer != null && transfer.exceptionProperty().isNotNull().get()) {
+          Throwable throwable = (Throwable) transfer.exceptionProperty().get();
+          Node graphic = new FontIcon("gmi-warning:20:yellow");
+          Tooltip tooltip = new Tooltip(throwable.getLocalizedMessage());
+          tooltip.setFont(new Font(tooltip.getFont().getName(), 12));
+          Tooltip.install(graphic, tooltip);
+          graphic.setOnMouseClicked(event -> {
+            if (USE_TOOLTIP_FOR_TRANSFER_EXCEPTIONS) {
+              tooltip.show(graphic, event.getScreenX(), event.getScreenY());
+              tooltip.setAutoHide(true);
+              event.consume();
+            } else if (throwable instanceof NotEnoughSpaceException) {
+              Alert alert = new Alert(Alert.AlertType.ERROR);
+              alert.setTitle(Bundle.get("alert.transfer.wont.fit.title"));
+              alert.setContentText(Bundle.get("alert.transfer.wont.fit"));
+              alert.setHeaderText(null);
+              alert.getButtonTypes().setAll(ButtonType.OK);
+              alert.initOwner(getScene().getWindow());
+              alert.getDialogPane().setExpandableContent(new TextArea(
+                  Bundle.get("alert.transfer.wont.fit.expanded",
+                      Utils.bytesToString(transfer.totalSize.get()),
+                      Utils.bytesToString(transfer.dstRepo.get().toFile().getUsableSpace()),
+                      transfer.game.title.get())
+              ));
+              alert.show();
+            } else {
+              Utils.newExceptionAlert(getScene().getWindow(), throwable).show();
+            }
+          });
+          setGraphic(graphic);
+        } else {
+          setGraphic(null);
+        }
+      }
+    });
+
     jfxTransfersProgressColumn.setCellFactory(param -> new TableCell<Transfer, Double>() {
       private final ProgressBarControl progressBar = new ProgressBarControl();
       ObservableValue<Double> observable;
@@ -83,9 +141,8 @@ public class TransfersControl extends HBox implements Initializable {
           if (observable != null) {
             progressBar.progressProperty().bind(observable);
             Game.Transfer transfer = (Game.Transfer) getTableRow().getItem();
-            if (transfer != null) {
-              // FIXME: This isn't being called in every case
-              transfer.exceptionProperty().isNotNull().addListener((observable, oldValue, newValue) -> progressBar.throwError());
+            if (transfer != null && transfer.exceptionProperty().isNotNull().get()) {
+              progressBar.throwError();
             }
           } else if (item != null) {
             progressBar.setProgress(item);
@@ -170,6 +227,20 @@ public class TransfersControl extends HBox implements Initializable {
 
   public void setItems(@Nullable ObservableList<Transfer> items) {
     transfers.set(items);
+    if (items != null) {
+      items.addListener((ListChangeListener<Game.Transfer>) c -> {
+        while (c.next()) {
+          if (c.wasAdded()) {
+            List<? extends Transfer> transfers = c.getAddedSubList();
+            transfers.forEach(transfer -> {
+              transfer.exceptionProperty().addListener((observable, oldValue, newValue) -> {
+                jfxTransfers.refresh();
+              });
+            });
+          }
+        }
+      });
+    }
   }
 
   @Nullable
