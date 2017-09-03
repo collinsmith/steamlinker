@@ -57,6 +57,7 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -71,6 +72,9 @@ public class MainController implements Initializable {
   private static final boolean DEBUG_STEAM_NOT_FOUND = Main.DEBUG_MODE && false;
   private static final boolean DEBUG_AUTO_ADD_REPOS = Main.DEBUG_MODE && true;
   private static final boolean DEBUG_TRANSFERS = Main.DEBUG_MODE && true;
+
+  private static final boolean USE_TOOLTIP_FOR_BROKEN_LINKS = true;
+  private static final boolean DONT_USE_SUPPLIER_IN_DEFAULT = true;
 
   private static final Logger LOG = Logger.getLogger(MainController.class);
   static {
@@ -102,7 +106,7 @@ public class MainController implements Initializable {
 
                 File file = game.path.get().toFile();
                 long size = FileUtils.sizeOfDirectory(file);
-                if (size > 0) {
+                if (PREFERENCES.getLong(Main.Prefs.GAME_SIZE + game.folder.get(), Long.MIN_VALUE) != size) {
                   PREFERENCES.putLong(Main.Prefs.GAME_SIZE + game.folder.get(), size);
                 }
                 game.size.set(size);
@@ -202,15 +206,11 @@ public class MainController implements Initializable {
           List<String> styleClass = getStyleClass();
           if (empty || item == null || !item.brokenJunction.get()) {
             styleClass.remove(jfxBrokenJunctionRow);
-            setTooltip(null);
             return;
           }
 
-          // FIXME: Tooltip remains when items are recycled
           if (!styleClass.contains(jfxBrokenJunctionRow)) {
             styleClass.add(jfxBrokenJunctionRow);
-            Tooltip tooltip = new Tooltip(Bundle.get("tooltip.broken.junction", item.path.get()));
-            Tooltip.install(this, tooltip);
           }
         }
       };
@@ -268,17 +268,22 @@ public class MainController implements Initializable {
         Game game = row.getItem();
         if (game != null && game.brokenJunction.get()) {
           Node graphic = new FontIcon("gmi-warning:20:yellow");
-          /*graphic.setOnMouseClicked(event -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setHeaderText(null);
-            alert.setContentText(Bundle.get("tooltip.broken.junction", game.path.get()));
-            alert.initOwner(window);
-            alert.show();
-
-            //tooltip.show(graphic, event.getScreenX(), event.getScreenY());
-            //tooltip.setAutoHide(true);
-            event.consume();
-          });*/
+          Tooltip tooltip = new Tooltip(Bundle.get("tooltip.broken.junction", game.path.get()));
+          tooltip.setFont(new Font(tooltip.getFont().getName(), 12));
+          Tooltip.install(graphic, tooltip);
+          graphic.setOnMouseClicked(event -> {
+            if (USE_TOOLTIP_FOR_BROKEN_LINKS) {
+              tooltip.show(graphic, event.getScreenX(), event.getScreenY());
+              tooltip.setAutoHide(true);
+              event.consume();
+            } else {
+              Alert alert = new Alert(Alert.AlertType.INFORMATION);
+              alert.setHeaderText(null);
+              alert.setContentText(Bundle.get("tooltip.broken.junction", game.path.get()));
+              alert.initOwner(window);
+              alert.show();
+            }
+          });
           setGraphic(graphic);
           setEditable(false);
         } else {
@@ -431,7 +436,7 @@ public class MainController implements Initializable {
         new Thread(addGamesTask).start();
       }
     });
-    if (true) {
+    if (DONT_USE_SUPPLIER_IN_DEFAULT) {
       String value = PREFERENCES.get(Main.Prefs.LIBS, null);
       if (value == null) {
         value = ((Supplier<String>) () -> {
