@@ -101,7 +101,11 @@ public class MainController implements Initializable {
                 }
 
                 File file = game.path.get().toFile();
-                game.size.set(FileUtils.sizeOfDirectory(file));
+                long size = FileUtils.sizeOfDirectory(file);
+                if (size > 0) {
+                  PREFERENCES.putLong(Main.Prefs.GAME_SIZE + game.folder.get(), size);
+                }
+                game.size.set(size);
                 Platform.runLater(() -> jfxGames.refresh());
               }
 
@@ -427,16 +431,34 @@ public class MainController implements Initializable {
         new Thread(addGamesTask).start();
       }
     });
-    libs.set(PATHS_CONVERTER.fromString(PREFERENCES.get(Main.Prefs.LIBS, ((Supplier<String>) () -> {
-      Path steamDir = linkerService.findSteam();
-      if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
-        steamDir = alertSteamFound(window, steamDir);
-      } else {
-        steamDir = alertSteamNotFound(window);
-      }
+    if (true) {
+      String value = PREFERENCES.get(Main.Prefs.LIBS, null);
+      if (value == null) {
+        value = ((Supplier<String>) () -> {
+          Path steamDir = linkerService.findSteam();
+          if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
+            steamDir = alertSteamFound(window, steamDir);
+          } else {
+            steamDir = alertSteamNotFound(window);
+          }
 
-      return steamDir != null ? steamDir.toString() : "";
-    }).get())));
+          return steamDir != null ? steamDir.toString() : "";
+        }).get();
+      }
+      libs.set(PATHS_CONVERTER.fromString(value));
+    } else {
+      // FIXME: Preferences.get() resolves Supplier.get(), which in turn overwrites the preference
+      libs.set(PATHS_CONVERTER.fromString(PREFERENCES.get(Main.Prefs.LIBS, ((Supplier<String>) () -> {
+        Path steamDir = linkerService.findSteam();
+        if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
+          steamDir = alertSteamFound(window, steamDir);
+        } else {
+          steamDir = alertSteamNotFound(window);
+        }
+
+        return steamDir != null ? steamDir.toString() : "";
+      }).get())));
+    }
 
     repos.addListener((observable, oldValue, newValue) -> prefs.put(Main.Prefs.REPOS, PATHS_CONVERTER.toString(newValue)));
     repos.set(PATHS_CONVERTER.fromString(PREFERENCES.get(Main.Prefs.REPOS, "")));

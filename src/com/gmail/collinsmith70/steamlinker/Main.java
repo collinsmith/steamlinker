@@ -21,7 +21,7 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 
-  static final boolean DEBUG_MODE = false;
+  static final boolean DEBUG_MODE = true;
   private static final boolean DEBUG_PREFERENCE_CHANGES = DEBUG_MODE && true;
 
   private static final Logger LOG = Logger.getLogger(Main.class);
@@ -30,7 +30,7 @@ public class Main extends Application {
     LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
   }
 
-  private static final boolean CLEAR_PREFERENCES = true;
+  private static final boolean CLEAR_PREFERENCES = false;
   static final Preferences PREFERENCES = Preferences.userNodeForPackage(Main.class);
   static {
     if (CLEAR_PREFERENCES) {
