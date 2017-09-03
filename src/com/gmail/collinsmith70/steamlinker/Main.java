@@ -61,6 +61,18 @@ public class Main extends Application {
     launch(args);
   }
 
+  private static final LinkerService LINKER_SERVICE;
+  static {
+    if (SystemUtils.IS_OS_WINDOWS) {
+      LINKER_SERVICE = new WindowsLinkerService();
+    } else {
+      LINKER_SERVICE = null;
+    }
+  }
+  public static LinkerService getService() {
+    return LINKER_SERVICE;
+  }
+
   @NotNull private Stage stage;
   @NotNull private Scene scene;
 

@@ -9,7 +9,8 @@
          type="javafx.scene.layout.HBox"
          alignment="CENTER_LEFT"
          onDragOver="#onDragOver"
-         onDragDropped="#onDragDropped">
+         onDragDropped="#onDragDropped"
+         onMouseClicked="#onMouseClicked">
   <VBox id="jfxRepo"
         HBox.hgrow="ALWAYS">
     <Label fx:id="jfxLabel"/>

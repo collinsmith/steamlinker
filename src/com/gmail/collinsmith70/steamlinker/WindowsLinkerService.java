@@ -27,6 +27,11 @@ public class WindowsLinkerService extends LinkerService {
     LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
   }
 
+  @Override
+  public void browse(@NotNull Path path) throws Exception {
+    Runtime.getRuntime().exec("explorer.exe " + path);
+  }
+
   @Nullable
   @Override
   public Path findSteam() {

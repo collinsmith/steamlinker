@@ -172,17 +172,6 @@ public class MainController implements Initializable {
   private Stage stage;
   private Scene scene;
 
-  private LinkerService linkerService = new WindowsLinkerService();
-
-  public void setLinkerService(@NotNull LinkerService linkerService) {
-    this.linkerService = linkerService;
-  }
-
-  @NotNull
-  public LinkerService getLinkerService() {
-    return linkerService;
-  }
-
   @Override
   public void initialize(URL location, ResourceBundle resources) {
     jfxLibs.setItems(libs);
@@ -392,7 +381,7 @@ public class MainController implements Initializable {
                   } catch (IOException e) {
                     LOG.warn("Broken link detected: " + path);
                     try {
-                      return result.init(name, linkerService.toRealPath(path), true);
+                      return result.init(name, Main.getService().toRealPath(path), true);
                     } catch (Exception ex) {
                       LOG.error(ex.getMessage(), ex);
                     }
@@ -440,7 +429,7 @@ public class MainController implements Initializable {
       String value = PREFERENCES.get(Main.Prefs.LIBS, null);
       if (value == null) {
         value = ((Supplier<String>) () -> {
-          Path steamDir = linkerService.findSteam();
+          Path steamDir = Main.getService().findSteam();
           if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
             steamDir = alertSteamFound(window, steamDir);
           } else {
@@ -454,7 +443,7 @@ public class MainController implements Initializable {
     } else {
       // FIXME: Preferences.get() resolves Supplier.get(), which in turn overwrites the preference
       libs.set(PATHS_CONVERTER.fromString(PREFERENCES.get(Main.Prefs.LIBS, ((Supplier<String>) () -> {
-        Path steamDir = linkerService.findSteam();
+        Path steamDir = Main.getService().findSteam();
         if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
           steamDir = alertSteamFound(window, steamDir);
         } else {
@@ -589,9 +578,9 @@ public class MainController implements Initializable {
               }
 
               try {
-                if (linkerService.isJunction(dst)) {
+                if (Main.getService().isJunction(dst)) {
                   if (DEBUG_TRANSFERS) LOG.info("removing junction in steam lib: " + dst);
-                  linkerService.deleteJunction(dst);
+                  Main.getService().deleteJunction(dst);
                 }
               } catch (Exception e) {
                 Utils.newExceptionAlert(window, e).show();
@@ -631,7 +620,7 @@ public class MainController implements Initializable {
         tryDelete(path);
       }
 
-      linkerService.createJunction(path, target);
+      Main.getService().createJunction(path, target);
       LOG.info(path + " <<===>> " + target);
     } catch (Exception e) {
       LOG.error(e.getMessage(), e);

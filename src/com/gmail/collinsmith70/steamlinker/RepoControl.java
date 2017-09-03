@@ -1,5 +1,8 @@
 package com.gmail.collinsmith70.steamlinker;
 
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,14 +24,24 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.HBox;
 
 public class RepoControl extends HBox implements Initializable {
+  private static final Logger LOG = Logger.getLogger(RepoControl.class);
+  static {
+    PatternLayout layout = new PatternLayout("[%-5p] %c::%M - %m%n");
+    LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
+  }
+
   private static final String SPACE_AVAILABLE = "repo-space-available";
   private static final String SPACE_LIMITED = "repo-space-limited";
   private static final String[] BAR_STYLES = { SPACE_AVAILABLE, SPACE_LIMITED };
@@ -45,6 +58,8 @@ public class RepoControl extends HBox implements Initializable {
   private LongProperty useableSpaceProperty = new SimpleLongProperty();
   private LongProperty totalSpaceProperty = new SimpleLongProperty();
   private ObjectProperty<EventHandler<? super Game.TransferEvent>> transferEventHandler = new SimpleObjectProperty<>();
+
+  private ContextMenu contextMenu;
 
   public RepoControl() {
     this(null);
@@ -89,6 +104,18 @@ public class RepoControl extends HBox implements Initializable {
         setProgressBarStyleClass(jfxProgressBar, SPACE_LIMITED);
       }
     });
+
+    MenuItem browse = new MenuItem(Bundle.get("repo.browse"));
+    browse.setOnAction(event -> {
+      try {
+        Main.getService().browse(repoProperty.get());
+      } catch (Exception e) {
+        LOG.error(e.getMessage(), e);
+      }
+    });
+
+    contextMenu = new ContextMenu();
+    contextMenu.getItems().add(browse);
   }
 
   public String getText() {
@@ -176,5 +203,15 @@ public class RepoControl extends HBox implements Initializable {
           event.getSource(), this, Game.TransferEvent.TRANSFER, filteredGames, repo);
       transferEventHandler.get().handle(transferEvent);
     }
+  }
+
+  @FXML
+  private void onMouseClicked(@NotNull MouseEvent event) {
+    if (event.getButton() != MouseButton.SECONDARY) {
+      return;
+    }
+
+    contextMenu.show(this, event.getScreenX(), event.getScreenY());
+    event.consume();
   }
 }

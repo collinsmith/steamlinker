@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import java.nio.file.Path;
 
 public abstract class LinkerService {
+  public abstract void browse(@NotNull Path path) throws Exception;
   @Nullable public abstract Path findSteam();
   @NotNull public abstract Path toRealPath(@NotNull Path path) throws Exception;
   public abstract boolean isJunction(@NotNull Path path) throws Exception;
