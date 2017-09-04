@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.prefs.Preferences;
@@ -387,6 +388,7 @@ public class MainController implements Initializable {
       }
 
       for (Path added : c.getAddedSubList()) {
+        List<Game> brokenJunctions = new CopyOnWriteArrayList<>();
         Task<List<Game>> addGamesTask = new Task<List<Game>>() {
           @Override
           protected List<Game> call() throws Exception {
@@ -401,7 +403,9 @@ public class MainController implements Initializable {
                   } catch (IOException e) {
                     LOG.warn("Broken link detected: " + path);
                     try {
-                      return result.init(name, Main.getService().toRealPath(path), true);
+                      Game game = result.init(name, Main.getService().toRealPath(path), true);
+                      brokenJunctions.add(game);
+                      return game;
                     } catch (Exception ex) {
                       LOG.error(ex.getMessage(), ex);
                     }
@@ -441,6 +445,31 @@ public class MainController implements Initializable {
           if (this.repos.size() < repos.size()) {
             this.repos.set(FXCollections.observableArrayList(repos));
           }
+
+          /*
+          if (!brokenJunctions.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (Game broken : brokenJunctions) {
+              sb.append(broken.path.get());
+              sb.append("\n");
+            }
+
+            sb.deleteCharAt(sb.length() - 1);
+
+            ButtonType remove = new ButtonType(Bundle.get("button.repair"), ButtonBar.ButtonData.APPLY);
+
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle(Bundle.get("alert.broken.junctions.title"));
+            alert.setContentText(Bundle.get("alert.broken.junctions"));
+            alert.setHeaderText(null);
+            alert.getButtonTypes().setAll(ButtonType.OK, remove);
+            alert.initOwner(window);
+            alert.getDialogPane().setExpandableContent(new TextArea(
+                Bundle.get("alert.broken.junctions.expanded",
+                    sb.toString())
+            ));
+            alert.show();
+          }*/
         });
         new Thread(addGamesTask).start();
       }
