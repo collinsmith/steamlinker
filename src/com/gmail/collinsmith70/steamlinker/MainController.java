@@ -275,6 +275,26 @@ public class MainController implements Initializable {
           });
           setGraphic(graphic);
           setEditable(false);
+        } else if (game != null && game.size.isEqualTo(0).get()) {
+          Node graphic = new FontIcon("gmi-warning:20:orange");
+          Tooltip tooltip = new Tooltip(Bundle.get("tooltip.empty.directory", game.path.get()));
+          tooltip.setFont(new Font(tooltip.getFont().getName(), 12));
+          Tooltip.install(graphic, tooltip);
+          graphic.setOnMouseClicked(event -> {
+            if (USE_TOOLTIP_FOR_BROKEN_LINKS) {
+              tooltip.show(graphic, event.getScreenX(), event.getScreenY());
+              tooltip.setAutoHide(true);
+              event.consume();
+            } else {
+              Alert alert = new Alert(Alert.AlertType.INFORMATION);
+              alert.setHeaderText(null);
+              alert.setContentText(Bundle.get("tooltip.empty.directory", game.path.get()));
+              alert.initOwner(window);
+              alert.show();
+            }
+          });
+          setGraphic(graphic);
+          setEditable(false);
         } else {
           setGraphic(null);
           setEditable(true);
