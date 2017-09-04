@@ -23,6 +23,8 @@ import javafx.util.StringConverter;
 public class Utils {
   private static final boolean DEBUG_JUNCTION_CREATION = Main.DEBUG_MODE && false;
 
+  private static final boolean PRINT_SI_UNITS_INSTEAD = false;
+
   private static final Logger LOG = Logger.getLogger(Utils.class);
   static {
     PatternLayout layout = new PatternLayout("[%-5p] %c::%M - %m%n");
@@ -101,7 +103,7 @@ public class Utils {
 
   @NotNull
   public static String bytesToString(long bytes) {
-    return bytesToString(bytes, true);
+    return bytesToString(bytes, false);
   }
 
   @NotNull
@@ -109,7 +111,12 @@ public class Utils {
     int unit = si ? 1000 : 1024;
     if (bytes < unit) return bytes + " B";
     int exp = (int) (Math.log(bytes) / Math.log(unit));
-    String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp - 1) + (si ? "" : "i");
+    String pre;
+    if (PRINT_SI_UNITS_INSTEAD) {
+      pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp - 1) + (si ? "" : "i");
+    } else {
+      pre = Character.toString("KMGTPE".charAt(exp - 1));
+    }
     return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
   }
 }

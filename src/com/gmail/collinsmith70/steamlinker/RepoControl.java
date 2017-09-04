@@ -92,7 +92,7 @@ public class RepoControl extends HBox implements Initializable {
       long availableSpace = totalSpaceProperty.get();
       jfxProgressBar.setProgress(availableSpace > 0 ? 1.0 - ((double) usedSpace / availableSpace) : 0);
       jfxProgressBarLabel.setText(Bundle.get("label.repos.space",
-          Utils.bytesToString(usedSpace), Utils.bytesToString(availableSpace)));
+          Utils.bytesToString(usedSpace, false), Utils.bytesToString(availableSpace)));
     };
     useableSpaceProperty.addListener(progressUpdater);
     totalSpaceProperty.addListener(progressUpdater);

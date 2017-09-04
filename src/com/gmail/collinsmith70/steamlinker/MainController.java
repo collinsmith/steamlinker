@@ -635,14 +635,15 @@ public class MainController implements Initializable {
                 Utils.newExceptionAlert(window, e).show();
               }
 
-              transfer.setOnSucceeded(onSucceeded -> {
+              Platform.runLater(() -> transfer.setOnSucceeded(onSucceeded -> {
                 boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
                 if (!keepOriginal) {
                   tryDelete(src);
                 } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
-
+                System.out.println("refreshing " + jfxRepos);
+                jfxRepos.getListView().refresh();
                 stage.toFront();
-              });
+              }));
             } else {
               // Transferring from lib to repo
               if (!repos.contains(dstRepo)) {
@@ -652,10 +653,12 @@ public class MainController implements Initializable {
                 return;
               }
 
-              transfer.setOnSucceeded(onSucceeded -> {
+              Platform.runLater(() -> transfer.setOnSucceeded(onSucceeded -> {
                 createJunction(src, dst);
+                System.out.println("refreshing " + jfxRepos);
+                jfxRepos.getListView().refresh();
                 stage.toFront();
-              });
+              }));
             }
           });
           new Thread(transfer).start();
