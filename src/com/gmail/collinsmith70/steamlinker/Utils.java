@@ -21,9 +21,9 @@ import javafx.stage.Window;
 import javafx.util.StringConverter;
 
 public class Utils {
-  private static final boolean DEBUG_JUNCTION_CREATION = Main.DEBUG_MODE && false;
+  private Utils() {}
 
-  private static final boolean PRINT_SI_UNITS_INSTEAD = false;
+  private static final boolean USE_SI_UNITS = false;
 
   private static final Logger LOG = Logger.getLogger(Utils.class);
   static {
@@ -31,17 +31,14 @@ public class Utils {
     LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
   }
 
-  private Utils() {}
-
-  public static final StringConverter<ObservableList<Path>> PATHS_CONVERTER = new
-      StringConverter<ObservableList<Path>>() {
+  public static final StringConverter<ObservableList<Path>> PATHS_CONVERTER = new StringConverter<ObservableList<Path>>() {
     @Override
     @NotNull
     public String toString(@Nullable ObservableList<Path> paths) {
       return paths != null
           ? String.join(";", paths.stream()
-          .map(Path::toString)
-          .collect(Collectors.joining(";")))
+              .map(Path::toString)
+              .collect(Collectors.joining(";")))
           : "";
     }
 
@@ -50,8 +47,8 @@ public class Utils {
     public ObservableList<Path> fromString(@Nullable String string) {
       return string != null && !string.isEmpty()
           ? FXCollections.observableList(Arrays.stream(string.split(";"))
-          .map(item -> Paths.get(item))
-          .collect(Collectors.toList()))
+              .map(path -> Paths.get(path))
+              .collect(Collectors.toList()))
           : FXCollections.observableArrayList();
     }
   };
@@ -112,7 +109,7 @@ public class Utils {
     if (bytes < unit) return bytes + " B";
     int exp = (int) (Math.log(bytes) / Math.log(unit));
     String pre;
-    if (PRINT_SI_UNITS_INSTEAD) {
+    if (USE_SI_UNITS) {
       pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp - 1) + (si ? "" : "i");
     } else {
       pre = Character.toString("KMGTPE".charAt(exp - 1));

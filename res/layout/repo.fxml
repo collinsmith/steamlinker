@@ -12,7 +12,8 @@
          onDragDropped="#onDragDropped"
          onMouseClicked="#onMouseClicked">
   <VBox id="jfxRepo"
-        HBox.hgrow="ALWAYS">
+        HBox.hgrow="ALWAYS"
+        mouseTransparent="true">
     <Label fx:id="jfxLabel"/>
     <ProgressBar fx:id="jfxProgressBar"
                  HBox.hgrow="ALWAYS"

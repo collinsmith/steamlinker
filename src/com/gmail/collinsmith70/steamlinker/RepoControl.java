@@ -108,7 +108,7 @@ public class RepoControl extends HBox implements Initializable {
     MenuItem browse = new MenuItem(Bundle.get("repo.browse"));
     browse.setOnAction(event -> {
       try {
-        Main.getService().browse(repoProperty.get());
+        Main.service().browse(repoProperty.get());
       } catch (Exception e) {
         LOG.error(e.getMessage(), e);
       }

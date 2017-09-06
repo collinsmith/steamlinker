@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.prefs.Preferences;
@@ -34,6 +35,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
@@ -70,12 +72,11 @@ import static com.gmail.collinsmith70.steamlinker.Utils.PATH_CONVERTER;
 
 public class MainController implements Initializable {
   private static final boolean DEBUG_PROPERTY_CHANGES = Main.DEBUG_MODE && true;
-  private static final boolean DEBUG_STEAM_NOT_FOUND = Main.DEBUG_MODE && false;
+  private static final boolean FORCE_STEAM_NOT_FOUND = Main.DEBUG_MODE && false;
   private static final boolean DEBUG_AUTO_ADD_REPOS = Main.DEBUG_MODE && true;
   private static final boolean DEBUG_TRANSFERS = Main.DEBUG_MODE && true;
 
   private static final boolean USE_TOOLTIP_FOR_BROKEN_LINKS = true;
-  private static final boolean DONT_USE_SUPPLIER_IN_DEFAULT = true;
 
   private static final Logger LOG = Logger.getLogger(MainController.class);
   static {
@@ -169,7 +170,6 @@ public class MainController implements Initializable {
   private final ListProperty<Path> repos = new SimpleListProperty<>(FXCollections.observableArrayList());
   private final ListProperty<Game.Transfer> transfers = new SimpleListProperty<>(FXCollections.observableArrayList());
 
-  private Window window;
   private Stage stage;
   private Scene scene;
 
@@ -270,7 +270,7 @@ public class MainController implements Initializable {
               Alert alert = new Alert(Alert.AlertType.INFORMATION);
               alert.setHeaderText(null);
               alert.setContentText(Bundle.get("tooltip.broken.junction", game.path.get()));
-              alert.initOwner(window);
+              alert.initOwner(stage);
               alert.show();
             }
           });
@@ -290,7 +290,7 @@ public class MainController implements Initializable {
               Alert alert = new Alert(Alert.AlertType.INFORMATION);
               alert.setHeaderText(null);
               alert.setContentText(Bundle.get("tooltip.empty.directory", game.path.get()));
-              alert.initOwner(window);
+              alert.initOwner(stage);
               alert.show();
             }
           });
@@ -367,16 +367,17 @@ public class MainController implements Initializable {
     }
   }
 
-  void bindProperties(@NotNull Preferences prefs) {
-    scene = jfxGames.getScene();
-    window = scene.getWindow();
-    stage = (Stage) window;
+  void configure(@NotNull Stage stage, @NotNull Scene scene) {
+    this.stage = stage;
+    this.scene = scene;
 
     if (DEBUG_PROPERTY_CHANGES) {
       libs.addListener((observable, oldValue, newValue) -> LOG.debug("libs->" + newValue));
       repos.addListener((observable, oldValue, newValue) -> LOG.debug("repos->" + newValue));
     }
+  }
 
+  void bindProperties(@NotNull Preferences prefs) {
     libs.addListener((observable, oldValue, newValue) -> prefs.put(Main.Prefs.LIBS, PATHS_CONVERTER.toString(newValue)));
     libs.addListener((ListChangeListener<Path>) c -> {
       if (!c.next()) {
@@ -403,7 +404,7 @@ public class MainController implements Initializable {
                   } catch (IOException e) {
                     LOG.warn("Broken link detected: " + path);
                     try {
-                      Game game = result.init(name, Main.getService().toRealPath(path), true);
+                      Game game = result.init(name, Main.service().toRealPath(path), true);
                       brokenJunctions.add(game);
                       return game;
                     } catch (Exception ex) {
@@ -418,7 +419,7 @@ public class MainController implements Initializable {
         };
         addGamesTask.exceptionProperty().addListener((observable, oldValue, e) -> {
           LOG.error(e.getMessage(), e);
-          Utils.newExceptionAlert(window, e);
+          Utils.newExceptionAlert(stage, e);
         });
         addGamesTask.setOnSucceeded(event -> {
           @SuppressWarnings("unchecked")
@@ -474,58 +475,53 @@ public class MainController implements Initializable {
         new Thread(addGamesTask).start();
       }
     });
-    if (DONT_USE_SUPPLIER_IN_DEFAULT) {
-      String value = PREFERENCES.get(Main.Prefs.LIBS, null);
-      if (value == null) {
-        value = ((Supplier<String>) () -> {
-          Path steamDir = Main.getService().findSteam();
-          if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
-            steamDir = alertSteamFound(window, steamDir);
-          } else {
-            steamDir = alertSteamNotFound(window);
-          }
-
-          return steamDir != null ? steamDir.toString() : "";
-        }).get();
-      }
-      libs.set(PATHS_CONVERTER.fromString(value));
-    } else {
-      // FIXME: Preferences.get() resolves Supplier.get(), which in turn overwrites the preference
-      libs.set(PATHS_CONVERTER.fromString(PREFERENCES.get(Main.Prefs.LIBS, ((Supplier<String>) () -> {
-        Path steamDir = Main.getService().findSteam();
-        if (steamDir != null && !DEBUG_STEAM_NOT_FOUND) {
-          steamDir = alertSteamFound(window, steamDir);
+    String value = PREFERENCES.get(Main.Prefs.LIBS, null);
+    if (value == null || value.isEmpty()) {
+      value = ((Supplier<String>) () -> {
+        Path lib = Main.service().findSteam();
+        if (lib != null && !FORCE_STEAM_NOT_FOUND) {
+          lib = alertLibFound(stage, lib);
         } else {
-          steamDir = alertSteamNotFound(window);
+          lib = alertLibNotFound(stage);
         }
 
-        return steamDir != null ? steamDir.toString() : "";
-      }).get())));
+        return lib != null ? lib.toString() : "";
+      }).get();
     }
+    libs.set(PATHS_CONVERTER.fromString(value));
 
     repos.addListener((observable, oldValue, newValue) -> prefs.put(Main.Prefs.REPOS, PATHS_CONVERTER.toString(newValue)));
     repos.set(PATHS_CONVERTER.fromString(PREFERENCES.get(Main.Prefs.REPOS, "")));
   }
 
   @Nullable
-  private static Path alertSteamFound(@NotNull Window owner, @NotNull Path steamDir) {
-    final ButtonType BROWSE = new ButtonType(Bundle.get("button.browse"), ButtonBar.ButtonData.NO);
+  private static Path alertLibFound(@NotNull Window owner, @NotNull Path lib) {
+    final AtomicReference<Path> result = new AtomicReference<>(lib);
+    final ButtonType BROWSE = new ButtonType(Bundle.get("button.browse"), ButtonBar.ButtonData
+        .LEFT);
 
-    Alert steamDetected = new Alert(Alert.AlertType.CONFIRMATION);
-    steamDetected.setTitle(Bundle.get("alert.steam.located.title"));
-    steamDetected.setHeaderText(null);
-    steamDetected.setContentText(Bundle.get("alert.steam.located", steamDir));
-    steamDetected.getButtonTypes().add(BROWSE);
-    steamDetected.initOwner(owner);
-    return steamDetected.showAndWait()
+    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+    alert.setTitle(Bundle.get("alert.steam.located.title"));
+    alert.setHeaderText(null);
+    alert.setContentText(Bundle.get("alert.steam.located", lib));
+    alert.getButtonTypes().add(BROWSE);
+    alert.initOwner(owner);
+    alert.getDialogPane().lookupButton(BROWSE).addEventFilter(ActionEvent.ACTION, event -> {
+      DirectoryChooser directoryChooser = new DirectoryChooser();
+      Path selectedPath = Optional.ofNullable(directoryChooser.showDialog(owner))
+          .map(File::toPath)
+          .orElse(null);
+      if (selectedPath == null) {
+        event.consume();
+      } else {
+        result.set(selectedPath);
+        alert.setResult(ButtonType.OK);
+      }
+    });
+    return alert.showAndWait()
         .map(buttonType -> {
-          if (buttonType == BROWSE) {
-            DirectoryChooser directoryChooser = new DirectoryChooser();
-            return Optional.ofNullable(directoryChooser.showDialog(owner))
-                .map(File::toPath)
-                .orElse(steamDir);
-          } else if (buttonType == ButtonType.OK) {
-            return steamDir;
+          if (buttonType == ButtonType.OK || buttonType == BROWSE) {
+            return result.get();
           } else {
             return null;
           }
@@ -534,22 +530,32 @@ public class MainController implements Initializable {
   }
 
   @Nullable
-  private static Path alertSteamNotFound(@NotNull Window owner) {
-    final ButtonType BROWSE = new ButtonType(Bundle.get("button.browse"), ButtonBar.ButtonData.NO);
+  private static Path alertLibNotFound(@NotNull Window owner) {
+    final AtomicReference<Path> result = new AtomicReference<>();
+    final ButtonType BROWSE = new ButtonType(Bundle.get("button.browse"), ButtonBar.ButtonData
+        .LEFT);
 
-    Alert steamNotDetected = new Alert(Alert.AlertType.CONFIRMATION);
-    steamNotDetected.setTitle(Bundle.get("alert.steam.located.failed.title"));
-    steamNotDetected.setHeaderText(null);
-    steamNotDetected.setContentText(Bundle.get("alert.steam.located.failed"));
-    steamNotDetected.getButtonTypes().setAll(ButtonType.CANCEL, BROWSE);
-    steamNotDetected.initOwner(owner);
-    return steamNotDetected.showAndWait()
+    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+    alert.setTitle(Bundle.get("alert.steam.located.failed.title"));
+    alert.setHeaderText(null);
+    alert.setContentText(Bundle.get("alert.steam.located.failed"));
+    alert.getButtonTypes().setAll(ButtonType.CANCEL, BROWSE);
+    alert.initOwner(owner);
+    alert.getDialogPane().lookupButton(BROWSE).addEventFilter(ActionEvent.ACTION, event -> {
+      DirectoryChooser directoryChooser = new DirectoryChooser();
+      Path selectedPath = Optional.ofNullable(directoryChooser.showDialog(owner))
+          .map(File::toPath)
+          .orElse(null);
+      if (selectedPath == null) {
+        event.consume();
+      } else {
+        result.set(selectedPath);
+      }
+    });
+    return alert.showAndWait()
         .map(buttonType -> {
           if (buttonType == BROWSE) {
-            DirectoryChooser directoryChooser = new DirectoryChooser();
-            return Optional.ofNullable(directoryChooser.showDialog(owner))
-                .map(File::toPath)
-                .orElse(null);
+            return result.get();
           } else {
             return null;
           }
@@ -585,7 +591,7 @@ public class MainController implements Initializable {
               alert.setContentText(Bundle.get("alert.transfer.wont.fit"));
               alert.setHeaderText(null);
               alert.getButtonTypes().setAll(ButtonType.OK);
-              alert.initOwner(window);
+              alert.initOwner(stage);
               alert.getDialogPane().setExpandableContent(new TextArea(
                   Bundle.get("alert.transfer.wont.fit.expanded",
                       Utils.bytesToString(transfer.totalSize.get()),
@@ -594,19 +600,19 @@ public class MainController implements Initializable {
               ));
               alert.show();
             } else {
-              Utils.newExceptionAlert(window, throwable).show();
+              Utils.newExceptionAlert(stage, throwable).show();
             }
           });
 
           if (libs.contains(srcRepo) && libs.contains(dstRepo)) {
             // TODO: Support lib to lib transfers
-            Utils.newExceptionAlert(window, new UnsupportedOperationException(
+            Utils.newExceptionAlert(stage, new UnsupportedOperationException(
                 "Cannot transfer games from one Steam Library to another yet!"))
                 .show();
             return;
           } else if (repos.contains(srcRepo) && repos.contains(dstRepo)) {
             // TODO: Support repo to repo transfers
-            Utils.newExceptionAlert(window, new UnsupportedOperationException(
+            Utils.newExceptionAlert(stage, new UnsupportedOperationException(
                 "Cannot transfer games from one repository to another yet!"))
                 .show();
             return;
@@ -620,34 +626,32 @@ public class MainController implements Initializable {
             if (libs.contains(dstRepo)) {
               // Transferring from repo to lib
               if (!repos.contains(srcRepo)) {
-                Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                Utils.newExceptionAlert(stage, new UnsupportedOperationException(
                     "Expected repo to lib transfer, but " + srcRepo + " is not a registered repo."))
                     .show();
                 return;
               }
 
               try {
-                if (Main.getService().isJunction(dst)) {
+                if (Main.service().isJunction(dst)) {
                   if (DEBUG_TRANSFERS) LOG.info("removing junction in steam lib: " + dst);
-                  Main.getService().deleteJunction(dst);
+                  Main.service().deleteJunction(dst);
                 }
               } catch (Exception e) {
-                Utils.newExceptionAlert(window, e).show();
+                Utils.newExceptionAlert(stage, e).show();
               }
 
               Platform.runLater(() -> transfer.setOnSucceeded(onSucceeded -> {
-                boolean keepOriginal = PREFERENCES.getBoolean(Main.Prefs.KEEP_ORIGINAL, true);
-                if (!keepOriginal) {
+                boolean deleteRepoCopy = PREFERENCES.getBoolean(Main.Prefs.DELETE_REPO_COPY, true);
+                if (!deleteRepoCopy) {
                   tryDelete(src);
                 } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
-                System.out.println("refreshing " + jfxRepos);
-                jfxRepos.getListView().refresh();
                 stage.toFront();
               }));
             } else {
               // Transferring from lib to repo
               if (!repos.contains(dstRepo)) {
-                Utils.newExceptionAlert(window, new UnsupportedOperationException(
+                Utils.newExceptionAlert(stage, new UnsupportedOperationException(
                     "Expected lib to repo transfer, but " + dstRepo + " is not a registered repo."))
                     .show();
                 return;
@@ -655,8 +659,6 @@ public class MainController implements Initializable {
 
               Platform.runLater(() -> transfer.setOnSucceeded(onSucceeded -> {
                 createJunction(src, dst);
-                System.out.println("refreshing " + jfxRepos);
-                jfxRepos.getListView().refresh();
                 stage.toFront();
               }));
             }
@@ -672,11 +674,11 @@ public class MainController implements Initializable {
         tryDelete(path);
       }
 
-      Main.getService().createJunction(path, target);
+      Main.service().createJunction(path, target);
       LOG.info(path + " <<===>> " + target);
     } catch (Exception e) {
       LOG.error(e.getMessage(), e);
-      Utils.newExceptionAlert(window, e).show();
+      Utils.newExceptionAlert(stage, e).show();
     }
   }
 
@@ -687,7 +689,7 @@ public class MainController implements Initializable {
       FileUtils.deleteDirectory(dir.toFile());
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
-      Utils.newExceptionAlert(window, e).show();
+      Utils.newExceptionAlert(stage, e).show();
     }
   }
 }
