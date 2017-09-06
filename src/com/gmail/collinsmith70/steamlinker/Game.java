@@ -99,7 +99,7 @@ public class Game implements Serializable {
 
   @NotNull
   Game init(@NotNull String title, @Nullable Path path, boolean broken) {
-    return init(title, path, true, Long.MIN_VALUE);
+    return init(title, path, broken, Long.MIN_VALUE);
   }
 
   @NotNull

@@ -91,7 +91,7 @@ public class TransfersControl extends HBox implements Initializable {
         Game.Transfer transfer = row.getItem();
         if (transfer != null && transfer.exceptionProperty().isNotNull().get()) {
           Throwable throwable = (Throwable) transfer.exceptionProperty().get();
-          Node graphic = new FontIcon("gmi-warning:20:yellow");
+          Node graphic = new FontIcon("gmi-warning:18:yellow");
           Tooltip tooltip = new Tooltip(throwable.getLocalizedMessage());
           tooltip.setFont(new Font(tooltip.getFont().getName(), 12));
           Tooltip.install(graphic, tooltip);

@@ -44,7 +44,12 @@ public class Main extends Application {
   static final Preferences PREFERENCES = Preferences.userNodeForPackage(Main.class);
   static {
     if (DEBUG_PREFERENCE_CHANGES) {
-      PREFERENCES.addPreferenceChangeListener(event -> LOG.debug(event.getKey() + "->\"" + event.getNewValue() + "\""));
+      PREFERENCES.addPreferenceChangeListener(event -> {
+        String newValue = event.getNewValue();
+        if (newValue != null) {
+          LOG.debug(event.getKey() + "->\"" + newValue + "\"");
+        }
+      });
     }
   }
 
@@ -145,7 +150,7 @@ public class Main extends Application {
 
     MainController controller = loader.getController();
     controller.configure(stage, scene);
-    controller.bindProperties(PREFERENCES);
+    controller.bindPreferences(PREFERENCES);
   }
 
   private static void setupStylesheets(@NotNull Scene scene) {

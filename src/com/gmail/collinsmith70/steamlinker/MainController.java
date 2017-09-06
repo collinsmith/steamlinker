@@ -257,7 +257,7 @@ public class MainController implements Initializable {
         TableRow<Game> row = getTableRow();
         Game game = row.getItem();
         if (game != null && game.brokenJunction.get()) {
-          Node graphic = new FontIcon("gmi-warning:20:yellow");
+          Node graphic = new FontIcon("gmi-warning:18:yellow");
           Tooltip tooltip = new Tooltip(Bundle.get("tooltip.broken.junction", game.path.get()));
           tooltip.setFont(new Font(tooltip.getFont().getName(), 12));
           Tooltip.install(graphic, tooltip);
@@ -276,8 +276,8 @@ public class MainController implements Initializable {
           });
           setGraphic(graphic);
           setEditable(false);
-        } else if (game != null && game.size.isEqualTo(0).get()) {
-          Node graphic = new FontIcon("gmi-warning:20:orange");
+        } else if (game != null && game.size.get() == 0L) {
+          Node graphic = new FontIcon("gmi-warning:18:orange");
           Tooltip tooltip = new Tooltip(Bundle.get("tooltip.empty.directory", game.path.get()));
           tooltip.setFont(new Font(tooltip.getFont().getName(), 12));
           Tooltip.install(graphic, tooltip);
@@ -377,7 +377,7 @@ public class MainController implements Initializable {
     }
   }
 
-  void bindProperties(@NotNull Preferences prefs) {
+  void bindPreferences(@NotNull Preferences prefs) {
     libs.addListener((observable, oldValue, newValue) -> prefs.put(Main.Prefs.LIBS, PATHS_CONVERTER.toString(newValue)));
     libs.addListener((ListChangeListener<Path>) c -> {
       if (!c.next()) {
