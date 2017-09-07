@@ -36,6 +36,7 @@ deploy:
   file_glob: true
   file: "${RELEASE_JAR_LIBRARY}"
   skip_cleanup: true
+  overwrite: true
   on:
     repo: collinsmith/steamlinker
     tags: false
