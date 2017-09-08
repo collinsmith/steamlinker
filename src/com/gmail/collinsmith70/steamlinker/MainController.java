@@ -84,6 +84,9 @@ public class MainController implements Initializable {
     LOG.addAppender(new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT));
   }
 
+  private Stage stage;
+  private Scene scene;
+
   @FXML private ReposControl jfxLibs;
   @FXML private ReposControl jfxRepos;
   @FXML private TransfersControl jfxTransfers;
@@ -97,6 +100,7 @@ public class MainController implements Initializable {
     games.addListener((ListChangeListener<Game>) c -> {
       while (c.next()) {
         if (c.wasAdded()) {
+          List<Game> emptyDirectories = new CopyOnWriteArrayList<>();
           List<? extends Game> games = c.getAddedSubList();
           Task updateSizeTask = new Task() {
             @Override
@@ -112,12 +116,20 @@ public class MainController implements Initializable {
                   PREFERENCES.putLong(Main.Prefs.GAME_SIZE + game.folder.get(), size);
                 }
                 game.size.set(size);
+                if (size == 0L) {
+                  emptyDirectories.add(game);
+                }
                 Platform.runLater(() -> jfxGames.refresh());
               }
 
               return null;
             }
           };
+          updateSizeTask.setOnSucceeded(event -> {
+            if (!emptyDirectories.isEmpty()) {
+              alertEmptyDirectories(emptyDirectories);
+            }
+          });
           new Thread(updateSizeTask).start();
         }
       }
@@ -169,9 +181,6 @@ public class MainController implements Initializable {
   private final ListProperty<Path> libs = new SimpleListProperty<>(FXCollections.observableArrayList());
   private final ListProperty<Path> repos = new SimpleListProperty<>(FXCollections.observableArrayList());
   private final ListProperty<Game.Transfer> transfers = new SimpleListProperty<>(FXCollections.observableArrayList());
-
-  private Stage stage;
-  private Scene scene;
 
   @Override
   public void initialize(URL location, ResourceBundle resources) {
@@ -315,6 +324,12 @@ public class MainController implements Initializable {
       protected void updateItem(Path item, boolean empty) {
         super.updateItem(item, empty);
         configureRepoCell(this, libs.get(), item, empty);
+        if (item != null) {
+          Game game = (Game) getTableRow().getItem();
+          if (game != null && game.brokenJunction.get()) {
+            setText(null);
+          }
+        }
       }
     });
 
@@ -404,11 +419,11 @@ public class MainController implements Initializable {
                   } catch (IOException e) {
                     LOG.warn("Broken link detected: " + path);
                     try {
-                      Game game = result.init(name, Main.service().toRealPath(path), true);
-                      brokenJunctions.add(game);
-                      return game;
-                    } catch (Exception ex) {
-                      LOG.error(ex.getMessage(), ex);
+                      result.init(name, path, true);
+                      brokenJunctions.add(result);
+                      return result;
+                    } catch (Throwable t) {
+                      LOG.error(t.getMessage(), t);
                     }
 
                     return result.init(name, null);
@@ -447,30 +462,9 @@ public class MainController implements Initializable {
             this.repos.set(FXCollections.observableArrayList(repos));
           }
 
-          /*
           if (!brokenJunctions.isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            for (Game broken : brokenJunctions) {
-              sb.append(broken.path.get());
-              sb.append("\n");
-            }
-
-            sb.deleteCharAt(sb.length() - 1);
-
-            ButtonType remove = new ButtonType(Bundle.get("button.repair"), ButtonBar.ButtonData.APPLY);
-
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle(Bundle.get("alert.broken.junctions.title"));
-            alert.setContentText(Bundle.get("alert.broken.junctions"));
-            alert.setHeaderText(null);
-            alert.getButtonTypes().setAll(ButtonType.OK, remove);
-            alert.initOwner(window);
-            alert.getDialogPane().setExpandableContent(new TextArea(
-                Bundle.get("alert.broken.junctions.expanded",
-                    sb.toString())
-            ));
-            alert.show();
-          }*/
+            alertBrokenJunctions(brokenJunctions);
+          }
         });
         new Thread(addGamesTask).start();
       }
@@ -561,6 +555,77 @@ public class MainController implements Initializable {
           }
         })
         .orElse(null);
+  }
+
+  private void alertBrokenJunctions(@NotNull List<Game> brokenJunctions) {
+    StringBuilder sb = new StringBuilder();
+    for (Game broken : brokenJunctions) {
+      sb.append(broken.path.get());
+      sb.append("\n");
+    }
+
+    sb.deleteCharAt(sb.length() - 1);
+
+    final ButtonType REPAIR = new ButtonType(Bundle.get("button.repair"), ButtonBar.ButtonData.APPLY);
+
+    Alert alert = new Alert(Alert.AlertType.ERROR);
+    alert.setTitle(Bundle.get("alert.broken.junctions.title"));
+    alert.setContentText(Bundle.get("alert.broken.junctions"));
+    alert.setHeaderText(null);
+    alert.getButtonTypes().setAll(ButtonType.CANCEL, REPAIR);
+    alert.initOwner(stage);
+    alert.getDialogPane().setExpandableContent(new TextArea(
+        Bundle.get("alert.broken.junctions.expanded", sb.toString())
+    ));
+    alert.showAndWait()
+        .filter(buttonType -> buttonType == REPAIR)
+        .ifPresent(buttonType -> {
+          LOG.info("Repairing broken junctions...");
+          for (Game game : brokenJunctions) {
+            try {
+              System.out.println(game.path.get());
+              Main.service().deleteJunction(game.path.get());
+              games.remove(game);
+            } catch (Throwable t) {
+              LOG.error(t.getMessage(), t);
+            }
+          }
+        });
+  }
+
+  private void alertEmptyDirectories(@NotNull List<Game> emptyDirectories) {
+    StringBuilder sb = new StringBuilder();
+    for (Game broken : emptyDirectories) {
+      sb.append(broken.path.get());
+      sb.append("\n");
+    }
+
+    sb.deleteCharAt(sb.length() - 1);
+
+    final ButtonType REPAIR = new ButtonType(Bundle.get("button.repair"), ButtonBar.ButtonData.APPLY);
+
+    Alert alert = new Alert(Alert.AlertType.ERROR);
+    alert.setTitle(Bundle.get("alert.empty.directories.title"));
+    alert.setContentText(Bundle.get("alert.empty.directories"));
+    alert.setHeaderText(null);
+    alert.getButtonTypes().setAll(ButtonType.CANCEL, REPAIR);
+    alert.initOwner(stage);
+    alert.getDialogPane().setExpandableContent(new TextArea(
+        Bundle.get("alert.empty.directories.expanded", sb.toString())
+    ));
+    alert.showAndWait()
+        .filter(buttonType -> buttonType == REPAIR)
+        .ifPresent(buttonType -> {
+          LOG.info("Repairing empty directories...");
+          for (Game game : emptyDirectories) {
+            try {
+              tryDelete(game.path.get());
+              games.remove(game);
+            } catch (Throwable t) {
+              LOG.error(t.getMessage(), t);
+            }
+          }
+        });
   }
 
   @FXML
