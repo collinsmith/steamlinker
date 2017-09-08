@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WindowsLinkerService extends LinkerService {
-  private static final boolean DEBUG_JUNCTION_CREATION = Main.DEBUG_MODE && false;
+  private static final boolean DEBUG_JUNCTION_CREATION = Main.DEBUG_MODE && true;
 
   private static final Logger LOG = Logger.getLogger(WindowsLinkerService.class);
   static {

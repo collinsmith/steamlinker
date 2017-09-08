@@ -127,7 +127,7 @@ public class MainController implements Initializable {
           };
           updateSizeTask.setOnSucceeded(event -> {
             if (!emptyDirectories.isEmpty()) {
-              alertEmptyDirectories(emptyDirectories);
+              //alertEmptyDirectories(emptyDirectories);
             }
           });
           new Thread(updateSizeTask).start();
@@ -583,7 +583,6 @@ public class MainController implements Initializable {
           LOG.info("Repairing broken junctions...");
           for (Game game : brokenJunctions) {
             try {
-              System.out.println(game.path.get());
               Main.service().deleteJunction(game.path.get());
               games.remove(game);
             } catch (Throwable t) {
@@ -619,7 +618,14 @@ public class MainController implements Initializable {
           LOG.info("Repairing empty directories...");
           for (Game game : emptyDirectories) {
             try {
-              tryDelete(game.path.get());
+              Path path = game.path.get();
+              if (libs.contains(game.repo.get())) {
+                tryDelete(path);
+              } else {
+                tryDelete(path);
+                // FIXME: Deleting in this case causing problems - can't get real path (of junction)
+                //Main.service().deleteJunction(path);
+              }
               games.remove(game);
             } catch (Throwable t) {
               LOG.error(t.getMessage(), t);
