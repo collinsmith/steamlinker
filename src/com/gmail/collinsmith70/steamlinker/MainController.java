@@ -571,12 +571,11 @@ public class MainController implements Initializable {
         .map(game -> theseGames.stream()
             .filter(tmp -> tmp.path.get().equals(game.path.get()))
             .findFirst()
-            .get())
+            .orElseThrow(AssertionError::new))
         .forEach(game -> {
           Game.Transfer transfer = game.createTransfer(event.dstRepo, PREFERENCES.getBoolean(Main.Prefs.VERIFY, true));
           transfers.add(transfer);
 
-          final Path currentPath = game.path.get();
           final Path src = transfer.src.get();
           final Path srcRepo = transfer.srcRepo.get();
           final Path dst = transfer.dst.get();
@@ -646,6 +645,8 @@ public class MainController implements Initializable {
                 if (!deleteRepoCopy) {
                   tryDelete(src);
                 } else if (DEBUG_TRANSFERS) LOG.info("preserving repo copy: " + dst);
+                jfxRepos.lookup(srcRepo).refresh();
+                ((RepoControl) event.getTarget()).refresh();
                 stage.toFront();
               }));
             } else {
@@ -659,6 +660,8 @@ public class MainController implements Initializable {
 
               Platform.runLater(() -> transfer.setOnSucceeded(onSucceeded -> {
                 createJunction(src, dst);
+                jfxLibs.lookup(srcRepo).refresh();
+                ((RepoControl) event.getTarget()).refresh();
                 stage.toFront();
               }));
             }

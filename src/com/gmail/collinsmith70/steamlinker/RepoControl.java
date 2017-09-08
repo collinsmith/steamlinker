@@ -6,7 +6,7 @@ import org.apache.log4j.PatternLayout;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
+import java.io.File;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
@@ -62,10 +62,10 @@ public class RepoControl extends HBox implements Initializable {
   private ContextMenu contextMenu;
 
   public RepoControl() {
-    this(null);
+    this(null, null);
   }
 
-  public RepoControl(@Nullable Path repo) {
+  public RepoControl(@Nullable Path repo, @Nullable ObjectProperty<EventHandler<? super Game.TransferEvent>> transferEventHandler) {
     URL location = RepoControl.class.getResource("/layout/repo.fxml");
     FXMLLoader loader = new FXMLLoader();
     loader.setRoot(this);
@@ -75,11 +75,12 @@ public class RepoControl extends HBox implements Initializable {
 
     try {
       loader.load();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    } catch (Throwable t) {
+      throw new RuntimeException(t);
     }
 
     repoProperty.set(repo);
+    this.transferEventHandler.bind(transferEventHandler);
   }
 
   @Override
@@ -105,17 +106,31 @@ public class RepoControl extends HBox implements Initializable {
       }
     });
 
-    MenuItem browse = new MenuItem(Bundle.get("repo.browse"));
-    browse.setOnAction(event -> {
-      try {
-        Main.service().browse(repoProperty.get());
-      } catch (Exception e) {
-        LOG.error(e.getMessage(), e);
-      }
-    });
+    final MenuItem BROWSE = new MenuItem(Bundle.get("repo.browse"));
+    BROWSE.setOnAction(event -> browse());
+
+    final MenuItem REFRESH = new MenuItem(Bundle.get("repo.refresh"));
+    REFRESH.setOnAction(event -> refresh());
 
     contextMenu = new ContextMenu();
-    contextMenu.getItems().add(browse);
+    contextMenu.getItems().addAll(BROWSE, REFRESH);
+  }
+
+  public void browse() {
+    try {
+      Main.service().browse(repoProperty.get());
+    } catch (Exception e) {
+      LOG.error(e.getMessage(), e);
+    }
+  }
+
+  public void refresh() {
+    Path path = repoProperty.get();
+    File asFile = path.toFile();
+    useableSpaceProperty.set(asFile.getUsableSpace());
+    totalSpaceProperty.set(asFile.getTotalSpace());
+    LOG.debug(String.format("Refreshing %s [%s/%s]",
+        path, Utils.bytesToString(useableSpaceProperty.get()), Utils.bytesToString(totalSpaceProperty.get())));
   }
 
   public String getText() {

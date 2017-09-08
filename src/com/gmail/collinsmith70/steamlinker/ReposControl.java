@@ -4,11 +4,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -42,6 +43,9 @@ public class ReposControl extends HBox implements Initializable {
   @NotNull StringProperty placeholderProperty = new SimpleStringProperty();
   @NotNull ObjectProperty<EventHandler<? super Game.TransferEvent>> transferEventHandler = new SimpleObjectProperty<>();
 
+  // TODO: Got to be a cleaner way of doing this
+  private Map<Path, RepoControl> repoControls = new ConcurrentHashMap<>();
+
   public ReposControl() {
     URL location = ReposControl.class.getResource("/layout/repos.fxml");
     FXMLLoader loader = new FXMLLoader();
@@ -52,8 +56,8 @@ public class ReposControl extends HBox implements Initializable {
 
     try {
       loader.load();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    } catch (Throwable t) {
+      throw new RuntimeException(t);
     }
   }
 
@@ -75,12 +79,9 @@ public class ReposControl extends HBox implements Initializable {
           setGraphic(null);
         } else if (path != null) {
           // TODO: Configure space properties to work based off of directory watcher so they update as file system changes
-          RepoControl repo = new RepoControl(path);
-
-          File asFile = path.toFile();
-          repo.useableSpaceProperty().set(asFile.getUsableSpace());
-          repo.totalSpaceProperty().set(asFile.getTotalSpace());
-          repo.onTransferProperty().bind(transferEventHandler);
+          RepoControl repo = new RepoControl(path, transferEventHandler);
+          repo.refresh();
+          repoControls.put(path, repo);
 
           setText(path.toString());
           setGraphic(repo);
@@ -125,6 +126,11 @@ public class ReposControl extends HBox implements Initializable {
   @NotNull
   public ObjectProperty<ObservableList<Path>> itemsProperty() {
     return repos;
+  }
+
+  @Nullable
+  public RepoControl lookup(@NotNull Path path) {
+    return repoControls.get(path);
   }
 
   @Nullable

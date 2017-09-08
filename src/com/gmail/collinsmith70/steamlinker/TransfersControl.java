@@ -6,7 +6,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
@@ -67,8 +66,8 @@ public class TransfersControl extends HBox implements Initializable {
 
     try {
       loader.load();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    } catch (Throwable t) {
+      throw new RuntimeException(t);
     }
   }
 
